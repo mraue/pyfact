@@ -7,7 +7,8 @@
 #          or http://trac6.assembla.com/pyfits/ticket/49
 #          It should be fixed in the trunk r925++ which you can check out via svn:
 #          svn co http://svn6.assembla.com/svn/pyfits/trunk/ ./
-
+# UPDATE:  The memory leak is fixed in r925
+#
 #===========================================================================
 # Imports
 
