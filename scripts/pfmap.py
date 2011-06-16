@@ -7,7 +7,7 @@
 #          or http://trac6.assembla.com/pyfits/ticket/49
 #          It should be fixed in the trunk r925++ which you can check out via svn:
 #          svn co http://svn6.assembla.com/svn/pyfits/trunk/ ./
-# UPDATE:  The memory leak is fixed in r925
+# UPDATE:  The memory leak is fixed in r925, let's hope for a new release version soon ;)
 #
 #===========================================================================
 # Imports
@@ -16,6 +16,8 @@ import sys, time, logging, os, gc
 import numpy as np
 import matplotlib.pyplot as plt
 import pyfits
+
+import scipy.interpolate
 
 # Add parent directory to python search path to get access to the pyfact package
 sys.path.append(os.path.abspath(sys.path[0].rsplit('/', 1)[0]))
@@ -70,6 +72,7 @@ def create_sky_map(input_file_name,
         objra, objdec = eval(skymap_center)
     sky_high_nbins, sky_dec_min, sky_dec_max, objcosdec, sky_ra_min, sky_ra_max = 0, 0., 0., 0., 0., 0.
     sky_hist, acc_hist, extent = None, None, None
+    tplt_had_hist, tplt_acc_hist = None, None
     sky_ex_reg = None
 
     firstloop = True
@@ -141,7 +144,7 @@ def create_sky_map(input_file_name,
 
         # Combine cuts for photons
         phomask = (tbdata.field('HIL_MSW ') < 1.1) * iamask * emask * camdmask
-        #hadmask = (tbdata.field('HIL_MSW ') > 1.3) * (tbdata.field('HIL_MSW ') < 2.) * iamask * emask * camdmask
+        hadmask = (tbdata.field('HIL_MSW ') > 1.3) * (tbdata.field('HIL_MSW ') < 10.) * iamask * emask * camdmask
 
         #objra, objdec, rexdeg = ex1hdr['RA_OBJ'], ex1hdr['DEC_OBJ'], 0.2
 
@@ -155,7 +158,7 @@ def create_sky_map(input_file_name,
                                    + (tbdata.field('DEC     ') - objdec) ** 2.) < rexdeg)
 
         photbdata = tbdata[phomask * exmask]
-        #hadtbdata = tbdata[hadmask * exmask]
+        hadtbdata = tbdata[hadmask * exmask]
 
         #---------------------------------------------------------------------------
         # Calculate camera acceptance
@@ -163,17 +166,34 @@ def create_sky_map(input_file_name,
         n, bins, nerr, r, r_a, ex_a, fitter = pf.get_cam_acc(photbdata.field('XCAMDIST'),
                                                              exreg=[[rexdeg, .5]], fit=True)
 
+        had_n = pf.get_cam_acc(hadtbdata.field('XCAMDIST'), exreg=[[rexdeg, .5]], fit=False)[0]
+
+        tplt_acc_f = scipy.interpolate.UnivariateSpline(r, n.astype(float) / had_n.astype(float), s=0)
+
+        #if firstloop :
+        #    plt.figure(3)
+        #    plt.plot(r, n.astype(float) / had_n.astype(float), 'd')
+        #    x = np.linspace(0., 4., 100)
+        #    plt.plot(x, tplt_acc_f(x))
+
         #---------------------------------------------------------------------------
         # Skymap - definitions/calculation
 
         # All photons including the exclusion regions
         photbdata = tbdata[phomask]
+        hadtbdata = tbdata[hadmask]
 
         # Calculate camera acceptance for each event using the fit function
         p1 = fitter.results[0]
         accept = fitter.fitfunc(p1, photbdata.field('XCAMDIST')) / fitter.fitfunc(p1, .1)
         m = photbdata.field('XCAMDIST') > 4.
         accept[m] = fitter.fitfunc(p1, 4.) / fitter.fitfunc(p1, .1)
+
+        tplt_acc = tplt_acc_f(hadtbdata.field('XCAMDIST'))
+        m = hadtbdata.field('XCAMDIST') > r[-1]
+        tplt_acc[m] = tplt_acc_f(r[-1])
+        m = hadtbdata.field('XCAMDIST') < r[0]
+        tplt_acc[m] = tplt_acc_f(r[0])
 
         # Object position in the sky
         if firstloop :
@@ -222,6 +242,27 @@ def create_sky_map(input_file_name,
         else :
             acc_hist += acc[0]
 
+        # Create hadron event like map for template background
+        tplt_had = np.histogram2d(x=hadtbdata.field('DEC     '), y=hadtbdata.field('RA      '),
+                                  bins=[sky_high_nbins, sky_high_nbins],
+                                  #weights=1./accept,
+                                  range=[[sky_dec_min, sky_dec_max], [sky_ra_min, sky_ra_max]])
+        if firstloop :
+            tplt_had_hist = tplt_had[0]
+        else :
+            tplt_had_hist += tplt_had[0]
+
+
+        # Create acceptance map for template background
+        tplt_acc = np.histogram2d(x=hadtbdata.field('DEC     '), y=hadtbdata.field('RA      '),
+                                  bins=[sky_high_nbins, sky_high_nbins],
+                                  weights=tplt_acc,
+                                  range=[[sky_dec_min, sky_dec_max], [sky_ra_min, sky_ra_max]])
+        if firstloop :
+            tplt_acc_hist = tplt_acc[0]
+        else :
+            tplt_acc_hist += tplt_acc[0]
+
         # Close fits file
         hdulist.close()
 
@@ -249,13 +290,21 @@ def create_sky_map(input_file_name,
     sky_overs, sky_overs_alpha = pf.oversample_sky_map(sky_hist, sc)
 
     logging.info('Calculating oversampled ring background map ..')
+    #sky_bg_ring, sky_bg_ring_alpha = pf.oversample_sky_map(sky_hist * sky_ex_reg, sr)
     sky_bg_ring, sky_bg_ring_alpha = pf.oversample_sky_map(sky_hist, sr, sky_ex_reg)
 
     logging.info('Calculating oversampled event acceptance map ..')
     acc_overs, acc_overs_alpha = pf.oversample_sky_map(acc_hist, sc)
 
     logging.info('Calculating oversampled ring background acceptance map ..')
+    #acc_bg_overs, acc_bg_overs_alpha = pf.oversample_sky_map(acc_hist * sky_ex_reg, sr)
     acc_bg_overs, acc_bg_overs_alpha = pf.oversample_sky_map(acc_hist, sr, sky_ex_reg)
+
+    logging.info('Calculating oversampled template background map ..')
+    tplt_had_overs, tplt_had_overs_alpha = pf.oversample_sky_map(tplt_had_hist, sc)
+
+    logging.info('Calculating oversampled template acceptance map.')
+    tplt_acc_overs, tplt_acc_overs_alpha = pf.oversample_sky_map(tplt_acc_hist, sc)
 
     sky_alpha = sky_overs_alpha / sky_bg_ring_alpha # geometry
     sky_alpha *=  acc_bg_overs / sky_bg_ring / acc_overs * sky_overs # camera acceptance
@@ -404,11 +453,50 @@ def create_sky_map(input_file_name,
     plt.ylabel('Dec (deg)')
     plt.title('Alpha factor', fontsize='medium')
 
-    ##DEBUG
-    #plt.figure(2)
+    #DEBUG
+    plt.figure(2)
     #
     #plt.imshow(sky_ex_reg[::-1], extent=extent, interpolation='nearest')
     #cb = plt.colorbar()
+
+    #plt.subplot(221)
+    #plt.imshow(tplt_had_overs[::-1], extent=extent, interpolation='nearest')
+    #cb = plt.colorbar()
+
+    plt.subplot(222)
+    plt.imshow(tplt_acc_overs[::-1], extent=extent, interpolation='nearest')
+    #plt.imshow(np.where(sky_hist != 0., 1., 0.), extent=extent, interpolation='nearest')
+    cb = plt.colorbar()
+
+    plt.subplot(223)
+    plt.imshow((sky_overs - tplt_acc_overs)[::-1], extent=extent, interpolation='nearest')
+    cb = plt.colorbar()
+    #plt.clim(-30., 100.)
+
+    plt.subplot(224)
+    tplt_sig_overs = pf.get_li_ma_sign(sky_overs, tplt_had_overs, tplt_acc_overs / tplt_had_overs)
+    plt.imshow(tplt_sig_overs[::-1], extent=extent, interpolation='nearest')
+    cb = plt.colorbar()
+
+    plt.subplot(221)
+    # Only consider a circle of 2.5 deg around the source
+    sky_ex_reg = pf.get_exclusion_region_map(sky_hist, (sky_ra_min, sky_ra_max), (sky_dec_min, sky_dec_max),
+                                             [pf.sky_circle(pf.sky_coord(objra, objdec), 3.)])
+    #n, bins, patches = plt.hist(tplt_sig_overs[sky_ex_reg == 0.].flatten(), bins=100, range=(-8., 8.),
+    n, bins, patches = plt.hist(tplt_sig_overs.flatten(), bins=100, range=(-8., 8.),
+                                histtype='stepfilled', color='SkyBlue', log=True)
+
+    gauss = lambda p, x: p[0] * np.exp(- (x - p[1]) ** 2. / 2. / p[2] ** 2.)
+
+    x = np.linspace(-5., 8., 100)
+
+    plt.plot(x, gauss([float(n.max()), 0., 1.], x), label='Gauss ($\sigma=1.$)')
+
+    plt.xlabel("Significance")
+
+    plt.ylim(1., n.max() * 5.)
+
+    plt.legend(loc='upper left', prop={'size': 'small'})
 
     #----------------------------------------
     # Time it!

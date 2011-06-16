@@ -70,10 +70,9 @@ def get_li_ma_sign(non, noff, alpha) :
     Returns the statistical significance following Li & Ma (1983) Equ. 13.
     Works with numpy arrays.
     """
-    sign = np.ones(non.shape)
-    sign = (non < noff * alpha) * sign * -2. + sign
+    sign = np.where(non < noff * alpha, -1., 1.)
     return sign * np.sqrt(2. * (non * np.log((1 + alpha) / alpha * non / (non + noff))
-                                + noff * np.log( (1 + alpha) * noff / (non + noff))))   
+                                + noff * np.log((1 + alpha) * noff / (non + noff))))   
 
 #---------------------------------------------------------------------------
 def get_nice_time(t, sep='') :

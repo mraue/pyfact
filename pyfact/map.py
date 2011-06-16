@@ -5,6 +5,7 @@ import sys, time, logging, os, datetime, math
 import numpy as np
 import scipy.optimize
 import scipy.special
+import scipy.ndimage
 import pyfits
 import pyfact as pf
 
@@ -209,7 +210,7 @@ def oversample_sky_map(sky, mask, exmap=None) :
     ----------
     sky : array like (2d numpy array)
     mask : array like (2d numpy array)
-    exmap : array like (2d numpy array), optional
+    exmap : array like (2d numpy array)
     """
     sky_nx, sky_ny =  sky.shape[0], sky.shape[1]
     mask_nx, mask_ny = mask.shape[0], mask.shape[1]
@@ -219,20 +220,15 @@ def oversample_sky_map(sky, mask, exmap=None) :
     sky_overs = np.zeros((sky_nx, sky_ny))
 
     # 2d hist keeping the number of bins used (alpha)
-    sky_alpha = np.zeros((sky_nx, sky_ny))
+    sky_alpha = np.ones((sky_nx, sky_ny))
 
-    for x in range(sky_nx) :
-        for y in range(sky_ny) :
-            # Create new empty base mask of size of the sky hist + mask
-            mask_full = np.zeros([sky_nx + mask_nx + 3, sky_ny + mask_ny + 3])
-            # Add mask at the right position
-            mask_full[x:x + mask_nx, y: y + mask_ny] = mask
-            # Mask sky hist, calculate sum, and fill new sky hist
-            mask_full = mask_full[mask_centerx:mask_centerx + sky_nx, mask_centery: mask_centery + sky_ny]
-            if exmap != None :
-                mask_full *= exmap
-            sky_overs[x, y] = np.sum(mask_full * sky)
-            sky_alpha[x, y] = np.sum(mask_full)
+    sky_base = np.ones((sky_nx, sky_ny))
+    if exmap != None :
+        sky *= exmap
+        sky_base *= exmap
+
+    scipy.ndimage.convolve(sky, mask, sky_overs, mode='constant')
+    scipy.ndimage.convolve(sky_base, mask, sky_alpha, mode='constant')
 
     return (sky_overs, sky_alpha)
 
