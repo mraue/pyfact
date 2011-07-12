@@ -13,22 +13,18 @@ import pyfact as pf
 # Functions & classes
 
 #---------------------------------------------------------------------------
-class sky_coord :
-
-    """
-    Sky coordinate in RA and Dec. All units should be degree.
-
-    In the current implementation it should also work with arrays, though one has to be careful in dist.
-
-    Parameters
-    ----------
-    ra: float / array-type
-        Right ascention coordinate.
-    dec: float / array-type
-        Declination of the coordinate.
-    """
-
+class SkyCoord:
+    """Sky coordinate in RA and Dec. All units should be degree."""
+    
     def __init__(self, ra, dec) :
+        """
+        Sky coordinate in RA and Dec. All units should be degree.
+        
+        In the current implementation it should also work with arrays, though one has to be careful in dist.
+        
+        :param float/array ra: Right ascention coordinate.
+        :param float/array dec: Declination of the coordinate.
+        """
         self.ra, self.dec = ra, dec
 
     def dist(self, c) :
@@ -36,9 +32,7 @@ class sky_coord :
         Return the distance of the coordinates in degree following the haversine formula,
         see e.g. http://en.wikipedia.org/wiki/Great-circle_distance .
 
-        Parameters
-        ----------
-        c: sky_coord
+        :param sky_coord c:
         """
         return 2. * np.arcsin(np.sqrt(np.sin((self.dec - c.dec) / 360. * np.pi) ** 2.
                                       + np.cos(self.dec / 180. * np.pi) * np.cos(c.dec / 180. * np.pi)\
@@ -46,28 +40,23 @@ class sky_coord :
 
 
 #---------------------------------------------------------------------------
-class sky_circle :
-    """
-    A circle on the sky.
-
-    Parameters
-    ----------
-    coord: sky_coord
-        Coordinates of the circle center (RA, Dec).
-    r: float
-        Radius of the circle (deg).
-    """
-
+class SkyCircle:
+    """A circle on the sky."""
+    
     def __init__(self, c, r) :
+        """
+        A circle on the sky.
+
+        :param SkyCoord coord: Coordinates of the circle center (RA, Dec)
+        :param float r: Radius of the circle (deg).
+        """
         self.c, self.r = c, r
 
     def contains(self, c) :
         """
         Checks if the coordinate lies inside the circle.
 
-        Parameters
-        ----------
-        c : sky_coord
+        :param SkyCoord c:
         """
         return self.c.dist(c) <= self.r
 
@@ -75,30 +64,22 @@ class sky_circle :
         """
         Checks if two sky circles overlap.
 
-        Parameters
-        ----------
-        sc: sky_circle
+        :param SkyCircle sc:
         """
         return self.c.dist(sc.c) <= self.r + sc.r
 
 #---------------------------------------------------------------------------
-def get_cam_acc(camdist, rmax=4., nbins=0, exreg=None, fit=False) :
+def get_cam_acc(camdist, rmax=4., nbins=0, exreg=None, fit=False, fitfunc=None, p0=None) :
     """
     Calculates the camera acceptance histogram from a given list with camera distances (event list).
 
-    Parameters
-    ----------
-    camdist: array-type
-        Numpy array of camera distances (event list).
-    rmax: float, optional
-        Maximum radius for the acceptance histogram.
-    nbins: int, optional
-        Number of bins for the acceptance histogram. Default is one bin per 0.1 deg.
-    exreg: array-type, optional
-        Array of exclusion regions. Exclusion regions are given by an aray of size 2
+    :param array camdist: Numpy array of camera distances (event list).
+    :param float rmax: Maximum radius for the acceptance histogram (optional).
+    :param nbins nbins: Number of bins for the acceptance histogram (optional; default = 0.1 deg).
+    :param array exreg:
+        Array of exclusion regions. Exclusion regions are given by an aray of size 2 (optional)
         [r, d] with r = radius, d = distance to camera center
-    fit: bool, optional
-        Fit acceptance histogram.
+    :param bool fit: Fit acceptance histogram (optional; default=False).
     """
     if not nbins :
         nbins = int(rmax / .1)
@@ -122,10 +103,13 @@ def get_cam_acc(camdist, rmax=4., nbins=0, exreg=None, fit=False) :
     fitter = None
     if fit :
         #fitfunc = lambda p, x: p[0] * x ** p[1] * (1. + (x / p[2]) ** p[3]) ** ((p[1] + p[4]) / p[3])
-        fitfunc = lambda p, x: p[0] * x ** 0. * (1. + (x / p[1]) ** p[2]) ** ((0. + p[3]) / p[2])
-        p0 = [n[0] / r_a[0], 1.5, 3., -5.] # Initial guess for the parameters
-        fitter = pf.chisquare_fitter(fitfunc)
-        fitter.fit_data(p0, r, n / r_a / (1. - ex_a), nerr / r_a / (1. - ex_a))
+        if not fitfunc :
+            fitfunc = lambda p, x: p[0] * x ** 0. * (1. + (x / p[1]) ** p[2]) ** ((0. + p[3]) / p[2])
+        if not p0 :
+            p0 = [n[0] / r_a[0], 1.5, 3., -5.] # Initial guess for the parameters
+        fitter = pf.ChisquareFitter(fitfunc)
+        m = n != 0
+        fitter.fit_data(p0, r[m], n[m] / r_a[m] / (1. - ex_a[m]), nerr[m] / r_a[m] / (1. - ex_a[m]))
     return (n, bins, nerr, r, r_a, ex_a, fitter)
 
 #---------------------------------------------------------------------------
@@ -134,21 +118,13 @@ def get_sky_mask_circle(r, bin_size) :
     Returns a 2d numpy histogram with (2. * r / bin_size) bins per axis
     where a circle of radius has bins filled 1.s, all other bins are 0. .
 
-    Parameters
-    ----------
-    r: float
-        Radius of the circle.
-    bin_size: float
-        Physical size of the bin, same units as rmin, rmax.
+    :param float r: Radius of the circle.
+    :param float bin_size: Physical size of the bin, same units as rmin, rmax.
     """
-    nbins = int(np.ceil(2 * r / bin_size))
-    sky_mask = np.zeros((nbins, nbins))
-    for x in range(nbins) :
-        for y in range(nbins) :
-            d = np.sqrt((float(x) * bin_size + bin_size / 2. - r) ** 2.
-                        + (float(y) * bin_size + bin_size / 2. - r) ** 2.)
-            if d < r :
-                sky_mask[x, y] = 1.
+    nbins = int(np.ceil(2. * r / bin_size))
+    sky_x = np.ones((nbins, nbins)) *  np.linspace(bin_size / 2., 2. * r - bin_size / 2., nbins)
+    sky_y = np.transpose(sky_x)
+    sky_mask = np.where(np.sqrt((sky_x - r) ** 2. + (sky_y - r) ** 2.) < r, 1., 0.)
     return sky_mask
 
 #---------------------------------------------------------------------------
@@ -158,24 +134,16 @@ def get_sky_mask_ring(rmin, rmax, bin_size) :
     filled with a ring with inner radius rmin and outer radius rmax of 1.,
     all other bins are 0..
 
-    Parameters
-    ----------
-    rmin: float
-        Inner radius of the ring.
-    rmax: float
-        Outer radius of the ring.
-    bin_size: float
-        Physical size of the bin, same units as rmin, rmax.
+    :param float rmin: Inner radius of the ring.
+    :param float rmax: Outer radius of the ring.
+    :param float bin_size: Physical size of the bin, same units as rmin, rmax.
     """
-    nbins = int(np.ceil(2 * rmax / bin_size))
-    sky_mask = np.zeros((nbins, nbins))
-    for x in range(nbins) :
-        for y in range(nbins) :
-            d = np.sqrt((float(x) * bin_size + bin_size / 2. - rmax) ** 2.
-                        + (float(y) * bin_size + bin_size / 2. - rmax) ** 2.)
-            if d < rmax and d > rmin :
-                sky_mask[x, y] = 1.
+    nbins = int(np.ceil(2. * rmax / bin_size))
+    sky_x = np.ones((nbins, nbins)) *  np.linspace(bin_size / 2., 2. * rmax - bin_size / 2., nbins)
+    sky_y = np.transpose(sky_x)
+    sky_mask = np.where((np.sqrt((sky_x - rmax) ** 2. + (sky_y - rmax) ** 2.) < rmax) * (np.sqrt((sky_x - rmax) ** 2. + (sky_y - rmax) ** 2.) > rmin), 1., 0.)
     return sky_mask
+
 
 #---------------------------------------------------------------------------
 def get_exclusion_region_map(map, rarange, decrange, exreg) :
@@ -184,12 +152,10 @@ def get_exclusion_region_map(map, rarange, decrange, exreg) :
 
     Dec is on the 1st axis (x), RA is on the 2nd (y).
 
-    Parameters:
-    -----------
-    map: array-type (2d numpy)
-    rarange: array-type
-    decrange: array-type
-    exreg: array-type of sky_circle
+    :param 2d array map:
+    :param array rarange:
+    :param array decrange
+    :param array exreg: array-type of SkyCircle
     """
     xnbins, ynbins = map.shape
     xstep, ystep = (decrange[1] - decrange[0]) / float(xnbins), (rarange[1] - rarange[0]) / float(ynbins)
@@ -197,7 +163,7 @@ def get_exclusion_region_map(map, rarange, decrange, exreg) :
     for x, xval in enumerate(np.linspace(decrange[0] + xstep / 2., decrange[1] - xstep / 2., xnbins)) :
         for y, yval in enumerate(np.linspace(rarange[0] + ystep / 2., rarange[1] - ystep / 2., ynbins)) :
             for reg in exreg :
-                if reg.contains(sky_coord(yval, xval)) :
+                if reg.contains(SkyCoord(yval, xval)) :
                     sky_mask[x, y] = 0.
     return sky_mask
 
@@ -206,11 +172,9 @@ def oversample_sky_map(sky, mask, exmap=None) :
     """
     Oversamples a 2d numpy histogram with a given mask.
 
-    Parameters
-    ----------
-    sky : array like (2d numpy array)
-    mask : array like (2d numpy array)
-    exmap : array like (2d numpy array)
+    :param 2d array sky:
+    :param 2d array mask:
+    :param 2d array exmap:
     """
     sky_nx, sky_ny =  sky.shape[0], sky.shape[1]
     mask_nx, mask_ny = mask.shape[0], mask.shape[1]

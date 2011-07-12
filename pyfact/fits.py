@@ -12,14 +12,9 @@ def map_to_primaryhdu(map, rarange, decrange) :
     """
     Converts a 2d numpy array into a FITS primary HDU.
 
-    Parameters
-    ----------
-    map: array-type
-        2d numpy array containing a skymap.
-    rarange: array-type
-        Tupel/Array with two entries giving the RA range of the map i.e. (ramin, ramax).
-    decrange: array-type
-        Tupel/Array with two entries giving the DEC range of the map i.e (decmin, decmax).
+    :param 2d array map: 2d numpy array containing a skymap.
+    :param array rarange: Tupel/Array with two entries giving the RA range of the map i.e. (ramin, ramax).
+    :param array decrange: Tupel/Array with two entries giving the DEC range of the map i.e (decmin, decmax).
     """
     decnbins, ranbins = map.shape
 

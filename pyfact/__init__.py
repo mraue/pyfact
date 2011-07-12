@@ -10,8 +10,8 @@ map - functions to deal with the creation of skymaps
 
 
 tools
-    class range :
-    class chisquare_fitter :
+    class Range :
+    class ChisquareFitter :
     def get_li_ma_sign(non, noff, alpha) :
     def get_nice_time(t, sep='') :
     def circle_circle_intersection(R, r, d) :
@@ -21,8 +21,8 @@ fits
     def map_to_primaryhdu(map, rarange, decrange) :
 
 map
-    class sky_coord :
-    class sky_circle :
+    class SkyCoord:
+    class SkyCircle:
     def get_cam_acc(camdist, rmax=4., nbins=0, exreg=None, fit=False) :
     def get_sky_mask_circle(r, bin_size) :
     def get_sky_mask_ring(rmin, rmax, bin_size) :

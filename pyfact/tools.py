@@ -11,19 +11,16 @@ import pyfits
 # Functions & classes
 
 #---------------------------------------------------------------------------
-class range :
-    """
-    Simple class to hold a range.
-
-    Parameters
-    ----------
-    min : float
-        Lower bound of the range.
-    max: float
-        Upper bound of the range.
-    """
-
+class Range :
+    """Simple class to hold a range."""
+    
     def __init__(self, min, max) :
+        """
+        Simple class to hold a range.
+
+        :param float min: Lower bound of the range.
+        :param float max: Upper bound of the range.
+        """
         if min <= max :
             raise Exception('min is less then max {0} <= {1}'.format(min, max))
         else :
@@ -36,7 +33,7 @@ class range :
         return min <= v <= max
 
 #---------------------------------------------------------------------------
-class chisquare_fitter :
+class ChisquareFitter :
     """
     Convenience class to perform Chi^2 fits.
     """
@@ -64,6 +61,25 @@ class chisquare_fitter :
     def chi_func(self, p, x, y, err):
         return (self.fitfunc(p, x) - y) / err # Distance to the target function
 
+    def print_results(self) :
+        if self.results == None :
+            logging.warning('No fit results to report since no fit has been performed yet')
+            return
+        if self.results[4] < 5 :
+            logging.info('Fit was successful!')
+        else :
+            logging.warning('Fitting failed!')
+            logging.warning('Message: {0}'.format(self.results[3]))
+        logging.info('Chi^2  : {0:.4e}'.format(self.chi2))
+        logging.info('d.o.f. : {0:.4e}'.format(self.dof))
+        logging.info('Prob.  : {0:.4e}'.format(self.prob))
+        for i, v in enumerate(self.results[0]) :
+            if self.results[1] != None :
+                logging.info('P{0}     : {1:.4e} +/- {2:.4e}'.format(i, v,
+                                                                     np.sqrt(self.results[1][i][i])))
+            else :
+                logging.info('P{0}     : {1:.4e}'.format(i, v))
+
 #---------------------------------------------------------------------------
 def get_li_ma_sign(non, noff, alpha) :
     """
@@ -80,12 +96,8 @@ def get_nice_time(t, sep='') :
     Returns the time in a formatted string <x>d<x>h<x>m<x>s
     with variable separator string between the units.
     
-    Parameters
-    ----------
-    t: float
-        Time in seconds.
-    sep: string, optional
-        Separator string to be used between units.
+    :param float t: Time in seconds.
+    :param string sep: Separator string to be used between units (optional).
     """
     s = ''
     if t > 86399. :
@@ -111,14 +123,9 @@ def circle_circle_intersection(R, r, d) :
 
     Works with floats and numpy arrays, but the current implementation is not very elegant.
 
-    Parameters
-    ----------
-    R: float / array
-        Radius of the first circle.
-    r: float / array
-        Radius of the second circle
-    d: float / array
-        Distance of the two circle (center to center)
+    :param float/array R: Radius of the first circle.
+    :param float/array r: Radius of the second circle.
+    :param float/array d: Distance of the two circle (center to center).
     """
 
     # Define a few useful lambda functions
@@ -144,7 +151,7 @@ def circle_circle_intersection(R, r, d) :
         result[mask1] = np.pi * r[mask1] ** 2.
     mask2 = r > d + R
     if mask2.any() :
-        result[mask2] = np.pi * r[mask2] ** 2.
+        result[mask2] = np.pi * R[mask2] ** 2.
     mask = (R + r > d) * np.invert(mask1) * np.invert(mask2)
     if mask.any() :
         r, R, d = r[mask], R[mask], d[mask]
@@ -156,8 +163,8 @@ def unique_base_file_name(name, extension=None) :
     """
     Checks if a given file already exists. If yes, creates a new unique filename.
 
-    Parameters
-    ----------
+    :param string name: Base file name.
+    :param string/array extension: File extension(s) (optional).
     """
     def filename_exists(name, extension) :
         exists = False
