@@ -104,7 +104,7 @@ def sim_evlist(flux=.1,
 
     n_events =  scipy.integrate.quad(f_test, 0.01, 100.)[0] * obstime
 
-    logging.info('Number of photons :{0}'.format(n_events))
+    logging.debug('Number of photons :{0}'.format(n_events))
 
     evlist_e = ev_gen_f(np.random.rand(n_events))
 
@@ -124,7 +124,7 @@ def sim_evlist(flux=.1,
     # Protons + electron
     p_rate_area = (irf_data[:,10] + irf_data[:,11]) / irf_data[:,5] / np.pi
 
-    logging.info('Total proton rate = {0}'.format(np.sum(irf_data[:,10])))
+    logging.debug('Total proton rate = {0}'.format(np.sum(irf_data[:,10])))
 
     p_rate_total =  np.sum(p_rate_area)
 
@@ -145,7 +145,7 @@ def sim_evlist(flux=.1,
 
     n_events_bg = int(p_rate_total * obstime * int_cam_acc[-1])
 
-    logging.info('Number of protons :{0}'.format(n_events_bg))
+    logging.debug('Number of protons :{0}'.format(n_events_bg))
 
     tplt_multi = 5
     evlist_bg_e = ev_gen_f(np.random.rand(n_events_bg * (tplt_multi + 1)))
@@ -197,8 +197,8 @@ def sim_evlist(flux=.1,
     plt.ylabel('Dec (deg)')
 
     test_r = np.sqrt(evlist_bg_ra ** 2. + evlist_bg_dec ** 2.)
-    logging.info('Number of BG events in a circle of area 1 deg^2 = {0}'.format(np.sum(test_r[0:n_events_bg] < np.sqrt(1. / np.pi))))
-    logging.info('Expected number of BG event per area 1 deg^2 = {0}'.format(p_rate_total * obstime))
+    logging.debug('Number of BG events in a circle of area 1 deg^2 = {0}'.format(np.sum(test_r[0:n_events_bg] < np.sqrt(1. / np.pi))))
+    logging.debug('Expected number of BG event per area 1 deg^2 = {0}'.format(p_rate_total * obstime))
 
     obj_r = np.sqrt(((obj_ra - evlist_ra) / objcosdec) ** 2. + (obj_dec - evlist_dec) ** 2.)
 

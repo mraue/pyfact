@@ -1,11 +1,16 @@
 #===========================================================================
 # Imports
 
-import sys, time, logging, os, datetime, math
+import sys
+import time
+import logging
+import os
+import datetime
+import math
+
 import numpy as np
 import scipy.optimize
 import scipy.special
-import pyfits
 
 #===========================================================================
 # Functions & classes
@@ -18,8 +23,12 @@ class Range :
         """
         Simple class to hold a range.
 
-        :param float min: Lower bound of the range.
-        :param float max: Upper bound of the range.
+        Parameters
+        ----------
+        min : float
+            Lower bound of the range.
+        max : float
+            Upper bound of the range.
         """
         if min <= max :
             raise Exception('min is less then max {0} <= {1}'.format(min, max))
@@ -29,6 +38,10 @@ class Range :
     def inrange(self, v) :
         """
         Check if value lies in the range.
+
+        Parameters
+        ----------
+        v : float
         """
         return min <= v <= max
 
@@ -95,9 +108,13 @@ def get_nice_time(t, sep='') :
     """
     Returns the time in a formatted string <x>d<x>h<x>m<x>s
     with variable separator string between the units.
-    
-    :param float t: Time in seconds.
-    :param string sep: Separator string to be used between units (optional).
+
+    Parameters
+    ----------
+    t : float
+        Time in seconds.
+    sep : string, optional
+        Separator string to be used between units.
     """
     s = ''
     if t > 86399. :
@@ -119,13 +136,23 @@ def get_nice_time(t, sep='') :
 #---------------------------------------------------------------------------
 def circle_circle_intersection(R, r, d) :
     """
-    Returns the intersecting area between two circles with radius R and r and distance d.
+    Calculates the intersecting area between two circles with radius R and r and distance d.
 
     Works with floats and numpy arrays, but the current implementation is not very elegant.
 
-    :param float/array R: Radius of the first circle.
-    :param float/array r: Radius of the second circle.
-    :param float/array d: Distance of the two circle (center to center).
+    Parameters
+    ----------
+     R : float/array
+        Radius of the first circle.
+     r : float/array
+        Radius of the second circle.
+     d : float/array
+        Distance of the two circle (center to center).
+
+    Returns
+    -------
+    area : float
+        Returns the intersecting area between the two circles.        
     """
 
     # Define a few useful lambda functions
@@ -163,8 +190,18 @@ def unique_base_file_name(name, extension=None) :
     """
     Checks if a given file already exists. If yes, creates a new unique filename.
 
-    :param string name: Base file name.
-    :param string/array extension: File extension(s) (optional).
+    Parameters
+    ----------
+    
+    name : str
+        Base file name.
+    extension : str/array, optional
+        File extension(s).
+
+    Returns
+    -------
+    filename : str
+        Unique filename.
     """
     def filename_exists(name, extension) :
         exists = False
