@@ -1,4 +1,30 @@
 #===========================================================================
+# Copyright (c) 2011, Martin Raue
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#     * Neither the name of the PyFACT developers nor the
+#       names of its contributors may be used to endorse or promote products
+#       derived from this software without specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+#===========================================================================
 # Imports
 
 import sys
@@ -83,8 +109,8 @@ class ChisquareFitter :
         else :
             logging.warning('Fitting failed!')
             logging.warning('Message: {0}'.format(self.results[3]))
-        logging.info('Chi^2  : {0:.4e}'.format(self.chi2))
-        logging.info('d.o.f. : {0:.4e}'.format(self.dof))
+        logging.info('Chi^2  : {0:f}'.format(self.chi2))
+        logging.info('d.o.f. : {0:d}'.format(self.dof))
         logging.info('Prob.  : {0:.4e}'.format(self.prob))
         for i, v in enumerate(self.results[0]) :
             if self.results[1] != None :
@@ -155,7 +181,7 @@ def circle_circle_intersection(R, r, d) :
         Returns the intersecting area between the two circles.        
     """
 
-    # Define a few useful lambda functions
+    # Define a few useful functions
     X = lambda R, r, d: (d * d + r * r - R * R) / (2. * d * r)
     Y = lambda R, r, d: (d * d + R * R - r * r) / (2. * d * R)
     Z = lambda R, r, d: (-d + r + R) * (d + r - R) * (d - r + R) * (d + r + R)

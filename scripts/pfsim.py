@@ -1,6 +1,32 @@
 #! /usr/bin/env python
 
 #===========================================================================
+# Copyright (c) 2011, Martin Raue
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#     * Neither the name of the PyFACT developers nor the
+#       names of its contributors may be used to endorse or promote products
+#       derived from this software without specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+#===========================================================================
 # Imports
 
 import sys
@@ -104,7 +130,7 @@ def sim_evlist(flux=.1,
 
     n_events =  scipy.integrate.quad(f_test, 0.01, 100.)[0] * obstime
 
-    logging.debug('Number of photons :{0}'.format(n_events))
+    logging.debug('Number of photons : {0}'.format(n_events))
 
     evlist_e = ev_gen_f(np.random.rand(n_events))
 
@@ -145,7 +171,7 @@ def sim_evlist(flux=.1,
 
     n_events_bg = int(p_rate_total * obstime * int_cam_acc[-1])
 
-    logging.debug('Number of protons :{0}'.format(n_events_bg))
+    logging.debug('Number of protons : {0}'.format(n_events_bg))
 
     tplt_multi = 5
     evlist_bg_e = ev_gen_f(np.random.rand(n_events_bg * (tplt_multi + 1)))

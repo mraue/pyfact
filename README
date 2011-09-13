@@ -1,17 +1,22 @@
 +-------------------------------------------------+
 |  [Py]thon +                                     |
 |  [F]ITS                                         |
-|  [A]nalysis for                     < v0.0.1 >  |
-|  [C]herenkov                      Jul 12, 2011  |
+|  [A]nalysis for                     < v0.0.2 >  |
+|  [C]herenkov                      Sep 13, 2011  |
 |  [T]elescopes                                   |
 +-------------------------------------------------+
+
+Copyright (c) 2011, Martin Raue
+All rights reserved.
+
+PyFACT is distributed under the Modified BSD License (see below).
 
 ============
 INTRODUCTION
 
 PyFACT is a collection of python tools for the analysis of Imaging
 Atmospheric Cherenkov Telescope (IACT) data in FITS format. For the
-moment it is developed and maintained by Martin Raue (martin.raue@googlemail.com).
+moment it is developed and maintained by Martin Raue (martin.raue@desy.de).
 
 ============
 REQUIREMENTS
@@ -71,11 +76,33 @@ PFMAP
 ==================
 FEEDBACK & SUPPORT
 
-tbd
+For bug reports and feature requests please contact martin.raue@desy.de.
 
-========
-LISCENSE
+=======
+LICENSE
 
-tbd
+PyFACT is distributed under the Modified BSD License.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of the PyFACT developers nor the
+      names of its contributors may be used to endorse or promote products
+      derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 end.

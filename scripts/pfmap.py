@@ -1,15 +1,30 @@
 #! /usr/bin/env python
 
 #===========================================================================
-#
-# WARNING: pyfits.new_table has a memory leak in version 2.4.0
-#          see e.g. http://physicsnlinux.wordpress.com/2011/03/28/pyfits-memory-leak-in-new_table/
-#          or http://trac6.assembla.com/pyfits/ticket/49
-#          It should be fixed in the trunk r925++ which you can check out via svn:
-#          svn co http://svn6.assembla.com/svn/pyfits/trunk/ ./
-# UPDATE:  The memory leak is fixed in r925, let's hope for a new release version soon ;)
-#          Memory leak & problem with .gz files is fixed in r927
-#
+# Copyright (c) 2011, Martin Raue
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#     * Neither the name of the PyFACT developers nor the
+#       names of its contributors may be used to endorse or promote products
+#       derived from this software without specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #===========================================================================
 # Imports
@@ -43,6 +58,7 @@ def create_sky_map(input_file_name,
                    skymap_bin_size=0.05,
                    r_overs=.125,
                    ring_bg_radii=None,
+                   template_background=True,
                    skymap_center=None,
                    write_output=False,
                    do_graphical_output=True,
@@ -153,10 +169,6 @@ def create_sky_map(input_file_name,
         # Add new columns to the table
         #coldefs_new = pyfits.ColDefs([camdist_col, cosdec_col])
         coldefs_new = pyfits.ColDefs([camdist_col])
-        # WARNING: pyfits.new_table has a memory leak in version 2.4.0
-        #          see e.g. http://physicsnlinux.wordpress.com/2011/03/28/pyfits-memory-leak-in-new_table/
-        #          or http://trac6.assembla.com/pyfits/ticket/49
-        # UPDATE:  The memory leak is fixed in the current trunk r927 and the upcoming v3.0.0
         newtable = pyfits.new_table(hdulist[1].columns + coldefs_new)
 
         # Print new table columns
@@ -205,6 +217,11 @@ def create_sky_map(input_file_name,
         photbdata = tbdata[phomask * exmask]
         hadtbdata = tbdata[hadmask * exmask]
 
+        if template_background and len(hadtbdata) < 100:
+            logging.warning('No background type events for template background detected.')
+            logging.info('Switching off template background.')
+            template_background = False
+
         #---------------------------------------------------------------------------
         # Calculate camera acceptance
 
@@ -215,19 +232,21 @@ def create_sky_map(input_file_name,
             )
         logging.debug('Camera acceptance photons fit probablity: {0}'.format(fitter.prob))
         #fitter.print_results()
-        
-        had_acc = pf.get_cam_acc(
-            hadtbdata.field('XCAMDIST'),
-            exreg=[[rexdeg, obj_cam_dist]],
-            fit=True
-            #fitfunc=lambda p, x: p[0] * x ** (0.) * (1. + (x/.5) ** p[3]) ** ((0. - p[4]) / p[3]) * (1. + (x/p[5]) ** p[6]) ** ((p[4] - p[7]) / p[6]),
-            #p0=[4.82566320e+03 ,  0.00000000e+00 ,  1.46945292e+00 ,  7.16216700e+00 ,  2.24993580e+00 ,  1.82949040e+00 ,  9.16285538e+02 ,  5.04507883e+00]
-            #p0=[1E3, 0., .5, 3., 1., 1.5, 3., 5.]
-            #fitfunc=lambda p, x: p[0] * x ** p[1] * (1. + (x / p[2]) ** p[3]) ** ((p[1] + p[4]) / p[3]),
-            #p0=[500.,0., 1.5, 3., -5.]
-            )
-        had_n, had_fit = had_acc[0], had_acc[6]
-        #logging.debug('Camera acceptance hadrons fit probablity: {0}'.format(had_fit.prob))
+
+        had_acc, had_n, had_fit = None, None, None
+        if template_background :
+            had_acc = pf.get_cam_acc(
+                hadtbdata.field('XCAMDIST'),
+                exreg=[[rexdeg, obj_cam_dist]],
+                fit=True
+                #fitfunc=lambda p, x: p[0] * x ** (0.) * (1. + (x/.5) ** p[3]) ** ((0. - p[4]) / p[3]) * (1. + (x/p[5]) ** p[6]) ** ((p[4] - p[7]) / p[6]),
+                #p0=[4.82566320e+03 ,  0.00000000e+00 ,  1.46945292e+00 ,  7.16216700e+00 ,  2.24993580e+00 ,  1.82949040e+00 ,  9.16285538e+02 ,  5.04507883e+00]
+                #p0=[1E3, 0., .5, 3., 1., 1.5, 3., 5.]
+                #fitfunc=lambda p, x: p[0] * x ** p[1] * (1. + (x / p[2]) ** p[3]) ** ((p[1] + p[4]) / p[3]),
+                #p0=[500.,0., 1.5, 3., -5.]
+                )
+            had_n, had_fit = had_acc[0], had_acc[6]
+            logging.debug('Camera acceptance hadrons fit probablity: {0}'.format(had_fit.prob))
 
         #if firstloop :
             #plt.figure(3)
@@ -251,16 +270,17 @@ def create_sky_map(input_file_name,
         accept[m] = fitter.fitfunc(p1, 4.) / fitter.fitfunc(p1, .1)
 
         tpl_acc_cor_use_interp = True
-        tpl_acc_f = None
-        if tpl_acc_cor_use_interp :
-            tpl_acc_f = scipy.interpolate.UnivariateSpline(r, n.astype(float) / had_n.astype(float), s=0, k=1)
-        else :
-            tpl_acc_f = lambda r: fitter.fitfunc(p1, r) / had_fit.fitfunc(had_fit.results[0], r)
-        tpl_acc = tpl_acc_f(hadtbdata.field('XCAMDIST'))
-        m = hadtbdata.field('XCAMDIST') > r[-1]
-        tpl_acc[m] = tpl_acc_f(r[-1])
-        m = hadtbdata.field('XCAMDIST') < r[0]
-        tpl_acc[m] = tpl_acc_f(r[0])
+        tpl_acc_f, tpl_acc = None, None
+        if template_background :
+            if tpl_acc_cor_use_interp :
+                tpl_acc_f = scipy.interpolate.UnivariateSpline(r, n.astype(float) / had_n.astype(float), s=0, k=1)
+            else :
+                tpl_acc_f = lambda r: fitter.fitfunc(p1, r) / had_fit.fitfunc(had_fit.results[0], r)
+            tpl_acc = tpl_acc_f(hadtbdata.field('XCAMDIST'))
+            m = hadtbdata.field('XCAMDIST') > r[-1]
+            tpl_acc[m] = tpl_acc_f(r[-1])
+            m = hadtbdata.field('XCAMDIST') < r[0]
+            tpl_acc[m] = tpl_acc_f(r[0])
 
         # Object position in the sky
         if firstloop :
@@ -308,26 +328,27 @@ def create_sky_map(input_file_name,
         else :
             acc_hist += acc[0]
 
-        # Create hadron event like map for template background
-        tpl_had = np.histogram2d(x=hadtbdata.field('DEC     '), y=hadtbdata.field('RA      '),
-                                  bins=[skymap_nbins, skymap_nbins],
-                                  #weights=1./accept,
-                                  range=[[sky_dec_min, sky_dec_max], [sky_ra_min, sky_ra_max]])
-        if firstloop :
-            tpl_had_hist = tpl_had[0]
-        else :
-            tpl_had_hist += tpl_had[0]
+        if template_background :
+            # Create hadron event like map for template background
+            tpl_had = np.histogram2d(x=hadtbdata.field('DEC     '), y=hadtbdata.field('RA      '),
+                                     bins=[skymap_nbins, skymap_nbins],
+                                     #weights=1./accept,
+                                     range=[[sky_dec_min, sky_dec_max], [sky_ra_min, sky_ra_max]])
+            if firstloop :
+                tpl_had_hist = tpl_had[0]
+            else :
+                tpl_had_hist += tpl_had[0]
 
 
-        # Create acceptance map for template background
-        tpl_acc = np.histogram2d(x=hadtbdata.field('DEC     '), y=hadtbdata.field('RA      '),
-                                  bins=[skymap_nbins, skymap_nbins],
-                                  weights=tpl_acc,
-                                  range=[[sky_dec_min, sky_dec_max], [sky_ra_min, sky_ra_max]])
-        if firstloop :
-            tpl_acc_hist = tpl_acc[0]
-        else :
-            tpl_acc_hist += tpl_acc[0]
+            # Create acceptance map for template background
+            tpl_acc = np.histogram2d(x=hadtbdata.field('DEC     '), y=hadtbdata.field('RA      '),
+                                     bins=[skymap_nbins, skymap_nbins],
+                                     weights=tpl_acc,
+                                     range=[[sky_dec_min, sky_dec_max], [sky_ra_min, sky_ra_max]])
+            if firstloop :
+                tpl_acc_hist = tpl_acc[0]
+            else :
+                tpl_acc_hist += tpl_acc[0]
 
         # Close fits file
         hdulist.close()
@@ -358,20 +379,23 @@ def create_sky_map(input_file_name,
     logging.info('Calculating oversampled ring background acceptance map ..')
     acc_bg_overs, acc_bg_overs_alpha = pf.oversample_sky_map(acc_hist, sr, sky_ex_reg)
 
-    logging.info('Calculating oversampled template background map ..')
-    tpl_had_overs, tpl_had_overs_alpha = pf.oversample_sky_map(tpl_had_hist, sc)
-
-    logging.info('Calculating oversampled template acceptance map ..')
-    tpl_acc_overs, tpl_acc_overs_alpha = pf.oversample_sky_map(tpl_acc_hist, sc)
-
     sky_alpha = sky_overs_alpha / sky_bg_ring_alpha # geometry
     sky_alpha *=  acc_bg_overs / sky_bg_ring / acc_overs * sky_overs # camera acceptance
     sky_excess = sky_overs - sky_bg_ring * sky_alpha
     sky_sign = pf.get_li_ma_sign(sky_overs, sky_bg_ring, sky_alpha)
 
-    tpl_exc_overs = sky_overs - tpl_acc_overs
-    tpl_alpha_overs = tpl_acc_overs / tpl_had_overs
-    tpl_sig_overs = pf.get_li_ma_sign(sky_overs, tpl_had_overs, tpl_alpha_overs)
+    tpl_had_overs, tpl_sig_overs, tpl_exc_overs, tpl_alpha_overs = None, None, None, None
+    if template_background :
+
+        logging.info('Calculating oversampled template background map ..')
+        tpl_had_overs, tpl_had_overs_alpha = pf.oversample_sky_map(tpl_had_hist, sc)
+
+        logging.info('Calculating oversampled template acceptance map ..')
+        tpl_acc_overs, tpl_acc_overs_alpha = pf.oversample_sky_map(tpl_acc_hist, sc)
+        
+        tpl_exc_overs = sky_overs - tpl_acc_overs
+        tpl_alpha_overs = tpl_acc_overs / tpl_had_overs
+        tpl_sig_overs = pf.get_li_ma_sign(sky_overs, tpl_had_overs, tpl_alpha_overs)
 
     #---------------------------------------------------------------------------
     # Write results to file
@@ -395,19 +419,20 @@ def create_sky_map(input_file_name,
         pf.map_to_primaryhdu(sky_excess, rarange, decrange).writeto(outfile_base_name + outfile_extensions[5])
         pf.map_to_primaryhdu(sky_alpha, rarange, decrange).writeto(outfile_base_name + outfile_extensions[6])
 
-        outfile_base_name = 'skymap_template'
-        outfile_extensions = ['_background.fits', '_acceptance.fits', '_background_over.fits',
-                              '_significance_over.fits', '_excess_over.fits', '_alpha_over.fits']
-        outfile_base_name = pf.unique_base_file_name(outfile_base_name, outfile_extensions)
+        if template_background :
+            outfile_base_name = 'skymap_template'
+            outfile_extensions = ['_background.fits', '_acceptance.fits', '_background_over.fits',
+                                  '_significance_over.fits', '_excess_over.fits', '_alpha_over.fits']
+            outfile_base_name = pf.unique_base_file_name(outfile_base_name, outfile_extensions)
 
-        pf.map_to_primaryhdu(tpl_had_hist, rarange, decrange).writeto(outfile_base_name + outfile_extensions[0])
-        pf.map_to_primaryhdu(tpl_acc_hist, rarange, decrange).writeto(outfile_base_name + outfile_extensions[1])
-        pf.map_to_primaryhdu(tpl_had_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[2])
-        pf.map_to_primaryhdu(tpl_sig_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[3])
-        pf.map_to_primaryhdu(tpl_exc_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[4])
-        pf.map_to_primaryhdu(tpl_alpha_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[5])
+            pf.map_to_primaryhdu(tpl_had_hist, rarange, decrange).writeto(outfile_base_name + outfile_extensions[0])
+            pf.map_to_primaryhdu(tpl_acc_hist, rarange, decrange).writeto(outfile_base_name + outfile_extensions[1])
+            pf.map_to_primaryhdu(tpl_had_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[2])
+            pf.map_to_primaryhdu(tpl_sig_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[3])
+            pf.map_to_primaryhdu(tpl_exc_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[4])
+            pf.map_to_primaryhdu(tpl_alpha_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[5])
 
-        logging.info('The output files can be found in {0}'.format(os.getcwd()))
+            logging.info('The output files can be found in {0}'.format(os.getcwd()))
 
     #---------------------------------------------------------------------------
     # Plot results
@@ -417,27 +442,10 @@ def create_sky_map(input_file_name,
         import matplotlib
         logging.info('Plotting results (matplotlib v{0})'.format(matplotlib.__version__))
 
-        #----------------------------------------
-        plt.figure(1, figsize=(13,7))
-
-        plt.subplots_adjust(wspace=.4, left=.07, right=.96, hspace=.25, top=.93)
-
         def set_title_and_axlabel(label) :
             plt.xlabel('RA (deg)')
             plt.ylabel('Dec (deg)')
             plt.title(label, fontsize='medium')
-
-        #----------------------------------------
-        ax = plt.subplot(231) 
-
-        # [::-1] - invert 1st axis
-        plt.imshow(sky_overs[::-1], extent=extent, interpolation='nearest')
-
-        cb = plt.colorbar()
-        cb.set_label('Events')
-        #plt.clim(-4., 4.)
-
-        set_title_and_axlabel('Events')
 
         cir_overs = matplotlib.patches.Circle(
             (sky_ra_min + .08 * (sky_ra_max - sky_ra_min) + r_overs / objcosdec,
@@ -448,76 +456,95 @@ def create_sky_map(input_file_name,
             facecolor='1.',
             alpha=.6
             )
-        ax.add_patch(cir_overs)
-
-        #----------------------------------------
-        ax = plt.subplot(232) 
-
-        plt.imshow(tpl_exc_overs[::-1], extent=extent, interpolation='nearest')
-
-        cb = plt.colorbar()
-        cb.set_label('Excess events')
-
-        set_title_and_axlabel('Template BG - Excess')
-
-        #----------------------------------------
-        ax = plt.subplot(233) 
-
-        plt.imshow(tpl_sig_overs[::-1], extent=extent, interpolation='nearest')
-
-        cb = plt.colorbar()
-        cb.set_label('Significance')
-
-        set_title_and_axlabel('Template BG - Significance')
-
-        #----------------------------------------
-        ax = plt.subplot(234) 
-
-        plt.imshow(tpl_had_overs[::-1], extent=extent, interpolation='nearest')
-
-        cb = plt.colorbar()
-        cb.set_label('Background events')
-
-        set_title_and_axlabel('Template BG - Background')
-
-        # Need 2nd instance to be able to add two circles to the same figure
-        cir_overs2 = matplotlib.patches.Circle(
-            (sky_ra_min + .08 * (sky_ra_max - sky_ra_min) + r_overs / objcosdec,
-             sky_dec_min + .08 * (sky_dec_max - sky_dec_min) + r_overs / objcosdec),
-            radius=r_overs / objcosdec,
-            fill=True,
-            edgecolor='1.',
-            facecolor='1.',
-            alpha=.6
-            )
-        ax.add_patch(cir_overs2)
-
-        #----------------------------------------
-        ax = plt.subplot(235) 
-
-        plt.imshow(tpl_alpha_overs[::-1], extent=extent, interpolation='nearest')
-
-        cb = plt.colorbar()
-        cb.set_label('Alpha')
-
-        set_title_and_axlabel('Template BG - Alpha')
-
-        #----------------------------------------
-        ax = plt.subplot(236)
 
         gauss_func = lambda p, x: p[0] * np.exp(- (x - p[1]) ** 2. / 2. / p[2] ** 2.)
+            
+        if template_background :
+            #----------------------------------------
+            plt.figure(1, figsize=(13,7))
+            
+            plt.subplots_adjust(wspace=.4, left=.07, right=.96, hspace=.25, top=.93)
 
-        n, bins, patches = plt.hist(tpl_sig_overs.flatten(), bins=100, range=(-8., 8.),
-                                    histtype='stepfilled', color='SkyBlue', log=True)
+            #----------------------------------------
+            ax = plt.subplot(231) 
 
-        x = np.linspace(-5., 8., 100)
-        plt.plot(x, gauss_func([float(n.max()), 0., 1.], x), label='Gauss ($\sigma=1.$, mean=0.)')
+            # [::-1] - invert 1st axis
+            plt.imshow(sky_overs[::-1], extent=extent, interpolation='nearest')
 
-        plt.xlabel('Significance')
-        plt.title('Template BG', fontsize='medium')
+            cb = plt.colorbar()
+            cb.set_label('Events')
+            #plt.clim(-4., 4.)
 
-        plt.ylim(1., n.max() * 5.)
-        plt.legend(loc='upper left', prop={'size': 'small'})
+            set_title_and_axlabel('Events')
+
+            ax.add_patch(cir_overs)
+
+            #----------------------------------------
+            ax = plt.subplot(232) 
+
+            plt.imshow(tpl_exc_overs[::-1], extent=extent, interpolation='nearest')
+
+            cb = plt.colorbar()
+            cb.set_label('Excess events')
+
+            set_title_and_axlabel('Template BG - Excess')
+
+            #----------------------------------------
+            ax = plt.subplot(233) 
+
+            plt.imshow(tpl_sig_overs[::-1], extent=extent, interpolation='nearest')
+
+            cb = plt.colorbar()
+            cb.set_label('Significance')
+
+            set_title_and_axlabel('Template BG - Significance')
+
+            #----------------------------------------
+            ax = plt.subplot(234) 
+
+            plt.imshow(tpl_had_overs[::-1], extent=extent, interpolation='nearest')
+
+            cb = plt.colorbar()
+            cb.set_label('Background events')
+
+            set_title_and_axlabel('Template BG - Background')
+
+            # Need 2nd instance to be able to add two circles to the same figure
+            cir_overs2 = matplotlib.patches.Circle(
+                (sky_ra_min + .08 * (sky_ra_max - sky_ra_min) + r_overs / objcosdec,
+                 sky_dec_min + .08 * (sky_dec_max - sky_dec_min) + r_overs / objcosdec),
+                radius=r_overs / objcosdec,
+                fill=True,
+                edgecolor='1.',
+                facecolor='1.',
+                alpha=.6
+                )
+            ax.add_patch(cir_overs2)
+
+            #----------------------------------------
+            ax = plt.subplot(235) 
+
+            plt.imshow(tpl_alpha_overs[::-1], extent=extent, interpolation='nearest')
+
+            cb = plt.colorbar()
+            cb.set_label('Alpha')
+
+            set_title_and_axlabel('Template BG - Alpha')
+
+            #----------------------------------------
+            ax = plt.subplot(236)
+
+            n, bins, patches = plt.hist(tpl_sig_overs.flatten(), bins=100, range=(-8., 8.),
+                                        histtype='stepfilled', color='SkyBlue', log=True)
+
+            x = np.linspace(-5., 8., 100)
+            plt.plot(x, gauss_func([float(n.max()), 0., 1.], x), label='Gauss ($\sigma=1.$, mean=0.)')
+
+            plt.xlabel('Significance')
+            plt.title('Template BG', fontsize='medium')
+
+            plt.ylim(1., n.max() * 5.)
+            plt.legend(loc='upper left', prop={'size': 'small'})
 
         #----------------------------------------
         plt.figure(2, figsize=(13,7))
@@ -692,6 +719,13 @@ if __name__ == '__main__':
         help='Write results to FITS files in current directory [default: %default]'
     )
     parser.add_option(
+        '--no-template-background',
+        dest='template_background',
+        action='store_false',
+        default=True,
+        help='Switch off template background.'
+    )
+    parser.add_option(
         '--no-graphical-output',
         dest='graphical_output',
         action='store_false',
@@ -714,6 +748,7 @@ if __name__ == '__main__':
             skymap_bin_size=options.bin_size,
             r_overs=options.oversampling_radius,
             ring_bg_radii=options.ring_bg_radii,
+            template_background=options.template_background,
             skymap_center=options.skymap_center,
             write_output=options.write_output,
             do_graphical_output=options.graphical_output,
