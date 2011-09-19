@@ -2,7 +2,7 @@
 |  [Py]thon +                                     |
 |  [F]ITS                                         |
 |  [A]nalysis for                     < v0.0.2 >  |
-|  [C]herenkov                      Sep 13, 2011  |
+|  [C]herenkov                      Sep 19, 2011  |
 |  [T]elescopes                                   |
 +-------------------------------------------------+
 
@@ -72,6 +72,11 @@ The scripts come with a builtin help text, which is displayed when the scripts a
 
 -----
 PFMAP
+
+========
+EXAMPLES
+
+In the examples/ folder example scripts can be found illustrating standard task like creating RMF and ARF files from numpy arrays.
 
 ==================
 FEEDBACK & SUPPORT

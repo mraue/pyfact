@@ -66,7 +66,7 @@ def map_to_primaryhdu(map, rarange, decrange) :
     hdr.update('CUNIT1', 'deg')
     hdr.update('CUNIT2', 'deg')
     hdr.update('CRVAL1', rarange[0])
-    hdr.update('CRVAL2', 0.) # Must be zero for the lines to rectalinear according to Calabretta (2002)
+    hdr.update('CRVAL2', 0.) # Must be zero for the lines to be rectalinear according to Calabretta (2002)
     hdr.update('CRPIX1', 1.)
     hdr.update('CRPIX2', - decrange[0] / decstep) # Pixel outside of the image at DEC = 0.
     hdr.update('CDELT1', rastep)
