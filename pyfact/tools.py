@@ -160,19 +160,59 @@ def get_nice_time(t, sep='') :
     return s.strip()
 
 #---------------------------------------------------------------------------
-def circle_circle_intersection(R, r, d) :
+def circle_circle_intersection_a(R, r, d) :
     """
     Calculates the intersecting area between two circles with radius R and r and distance d.
 
-    Works with floats and numpy arrays, but the current implementation is not very elegant.
+    Works _only_ with numpy arrays of equal length.
 
     Parameters
     ----------
-     R : float/array
+     R : array
         Radius of the first circle.
-     r : float/array
+     r : array
         Radius of the second circle.
-     d : float/array
+     d : array
+        Distance of the two circle (center to center).
+
+    Returns
+    -------
+    area : array
+        Returns the intersecting area between the two circles.        
+    """
+
+    # Define a few useful functions
+    X = lambda R, r, d: (d * d + r * r - R * R) / (2. * d * r)
+    Y = lambda R, r, d: (d * d + R * R - r * r) / (2. * d * R)
+    Z = lambda R, r, d: (-d + r + R) * (d + r - R) * (d - r + R) * (d + r + R)
+
+    result = np.zeros(len(R))
+    mask1 = R >= d + r
+    if mask1.any() :
+        result[mask1] = np.pi * r[mask1] ** 2.
+    mask2 = r >= d + R
+    if mask2.any() :
+        result[mask2] = np.pi * R[mask2] ** 2.
+    mask = (R + r > d) * np.invert(mask1) * np.invert(mask2)
+    if mask.any() :
+        r, R, d = r[mask], R[mask], d[mask]
+        result[mask] = (r ** 2.) * np.arccos(X(R, r, d)) + (R ** 2.) * np.arccos(Y(R, r, d)) - .5 * np.sqrt(Z(R, r, d));
+    return result
+
+#---------------------------------------------------------------------------
+def circle_circle_intersection_f(R, r, d) :
+    """
+    Calculates the intersecting area between two circles with radius R and r and distance d.
+
+    Works _only_ with floats.
+
+    Parameters
+    ----------
+     R : float
+        Radius of the first circle.
+     r : float
+        Radius of the second circle.
+     d : float
         Distance of the two circle (center to center).
 
     Returns
@@ -186,30 +226,14 @@ def circle_circle_intersection(R, r, d) :
     Y = lambda R, r, d: (d * d + R * R - r * r) / (2. * d * R)
     Z = lambda R, r, d: (-d + r + R) * (d + r - R) * (d - r + R) * (d + r + R)
 
-    # In case we have floats or arrays with only one entry
-    if type(R) == float or len(R) == 1 :
-        # If circle 1 lies in circle 2 or vice versa return full circle area
-        if R > d + r :
-            return np.pi * r ** 2.
-        elif r > d + R :
-            return np.pi * R ** 2.
-        elif R + r > d :
-            return (r ** 2.) * np.arccos(X(R, r, d)) + (R ** 2.) * np.arccos(Y(R, r, d)) - .5 * np.sqrt(Z(R, r, d))
-        else :
-            return 0.
-    
-    result = np.zeros(len(R))
-    mask1 = R > d + r
-    if mask1.any() :
-        result[mask1] = np.pi * r[mask1] ** 2.
-    mask2 = r > d + R
-    if mask2.any() :
-        result[mask2] = np.pi * R[mask2] ** 2.
-    mask = (R + r > d) * np.invert(mask1) * np.invert(mask2)
-    if mask.any() :
-        r, R, d = r[mask], R[mask], d[mask]
-        result[mask] = (r ** 2.) * np.arccos(X(R, r, d)) + (R ** 2.) * np.arccos(Y(R, r, d)) - .5 * np.sqrt(Z(R, r, d));
-    return result
+    if R >= d + r :
+        return np.pi * r ** 2.
+    elif r >= d + R :
+        return np.pi * R ** 2.
+    elif R + r > d :
+        return (r ** 2.) * np.arccos(X(R, r, d)) + (R ** 2.) * np.arccos(Y(R, r, d)) - .5 * np.sqrt(Z(R, r, d))
+    else :
+        return 0.
 
 #---------------------------------------------------------------------------
 def unique_base_file_name(name, extension=None) :
@@ -251,5 +275,24 @@ def unique_base_file_name(name, extension=None) :
             import random
             name += '_' + str(int(random.random() * 10000))
     return name
+
+#----------------------------------------------------------------------
+def date_to_mjd(d):
+    """
+    Returns MJD from a datetime or date object.
+
+    Notes
+    -----
+    http://en.wikipedia.org/wiki/Julian_Day
+    http://docs.python.org/library/datetime.html
+
+    """
+    a = (14 - d.month)//12
+    y = d.year + 4800 - a
+    m = d.month + 12*a - 3
+    mjd =  d.day + ((153*m + 2)//5) + 365*y + y//4 - y//100 + y//400 - 32045 - 2400000.5
+    if type(d) == datetime.datetime :
+        mjd += d.hour / 24. + d.minute / 1440. + d.second / 86400.0 + d.microsecond / 86400.E3
+    return mjd
 
 #===========================================================================

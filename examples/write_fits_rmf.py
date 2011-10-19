@@ -32,6 +32,13 @@ import logging
 import numpy as np
 import pyfits
 
+##DEBUG
+#import sys, os
+#import matplotlib.pyplot as plt
+## Add script parent directory to python search path to get access to the pyfact package
+#sys.path.append(os.path.abspath(sys.path[0].rsplit('/', 1)[0]))
+#import pyfact as pf
+
 """
 ===========
 DESCRIPTION
@@ -103,7 +110,7 @@ for i, r in enumerate(rm) :
         if m[j] :
             if new_subset :
                 n_grp_row += 1
-                f_chan_row.append(j + 1)
+                f_chan_row.append(j)
                 new_subset = False
             matrix_row.append(v)
             n_chan_row_c += 1
@@ -121,11 +128,11 @@ for i, r in enumerate(rm) :
 
 # Create RMF FITS table extension from data
 tbhdu = pyfits.new_table(
-    [pyfits.Column(name='ENERGY_LO',
+    [pyfits.Column(name='ENERG_LO',
                   format='1E',
                   array=energy_lo,
                   unit='TeV'),
-     pyfits.Column(name='ENERGY_HI',
+     pyfits.Column(name='ENERG_HI',
                   format='1E',
                   array=energy_hi,
                   unit='TeV'),
@@ -139,7 +146,7 @@ tbhdu = pyfits.new_table(
                    format='PI()',
                    array=n_chan),
      pyfits.Column(name='MATRIX',
-                   format='PE(()',
+                   format='PE()',
                    array=matrix)
      ]
     )
@@ -244,7 +251,30 @@ hdulist = pyfits.HDUList([hdu, tbhdu, tbhdu2])
 # WRITE FITS OUTPUT
 
 # Write RM & EBOUNDS FITS table to file
-hdulist.writeto('rmf_example.fits')
+#hdulist.writeto('rmf_example.fits')
+
+#---------------------------------------------------------------------------
+# DEBUG plots
+
+#f = pyfits.open('rmf_example.fits')
+#t = rm
+#print t
+#plt.subplot(221)
+#a,b,c,d = pf.rmf_to_np(f)
+#plt.imshow(a - t)
+#plt.colorbar()
+#
+#plt.subplot(222)
+#
+#plt.imshow(t)
+#plt.colorbar()
+#
+#plt.subplot(223)
+#
+#plt.imshow(a)
+#plt.colorbar()
+#
+#plt.show()
 
 #----------------------------------------------------------------------
 #----------------------------------------------------------------------

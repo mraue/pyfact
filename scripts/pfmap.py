@@ -85,7 +85,7 @@ def create_sky_map(input_file_name,
 
     # Skymap definition
     #skymap_size, skymap_bin_size = 6., 0.05
-    rexdeg = .2
+    rexdeg = .25
 
     # Intialize some variables
     objra, objdec, pntra, pntdec = None, None, None, None

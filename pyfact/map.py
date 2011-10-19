@@ -148,8 +148,8 @@ def get_cam_acc(camdist, rmax=4., nbins=0, exreg=None, fit=False, fitfunc=None, 
         ex_a = np.zeros(len(r))
         t =  np.ones(len(r))
         for reg in exreg :
-            ex_a += (pf.circle_circle_intersection(bins[1:], t * reg[0], t * reg[1])
-                     - pf.circle_circle_intersection(bins[:-1], t * reg[0], t * reg[1]))
+            ex_a += (pf.circle_circle_intersection_a(bins[1:], t * reg[0], t * reg[1])
+                     - pf.circle_circle_intersection_a(bins[:-1], t * reg[0], t * reg[1]))
         ex_a /= r_a
     # Fit the data
     fitter = None

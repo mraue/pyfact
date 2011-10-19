@@ -34,7 +34,6 @@ tools - general tools and helpers
 fits - functions to deal with input/output in fits format
 map - functions to deal with the creation of skymaps
 
-
 tools
     class Range :
     class ChisquareFitter :
@@ -42,9 +41,13 @@ tools
     def get_nice_time(t, sep='') :
     def circle_circle_intersection(R, r, d) :
     def unique_base_file_name(name, extension=None) :
+    def date_to_mjd(d) :
 
 fits
     def map_to_primaryhdu(map, rarange, decrange) :
+    def np_to_arf(ea, erange, telescope='DUMMY', instrument='DUMMY', filter='NONE') :
+    def np_to_rmf(rm, erange, ebounds, minprob,
+                  telescope='DUMMY', instrument='DUMMY', filter='NONE') :
 
 map
     class SkyCoord:
@@ -56,7 +59,7 @@ map
     def oversample_sky_map(sky, mask, exmap=None) :
 """
 
-__version__ = '0.0.1'
+__version__ = '0.0.3'
 __author__  = 'M. Raue // martin.raue@desy.de'
 
 # Import all functions/classes from the different files

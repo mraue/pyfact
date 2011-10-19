@@ -27,22 +27,16 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+#===========================================================================
+# Imports
+
 import logging
 
 import numpy as np
 import pyfits
 
-"""
-===========
-DESCRIPTION
-
-This script demonstrates how to write an auxiliary instrument response (effective area)
-from a numpy array to a FITS file in the ARF standard.
-
-For more info on the ARF FITS file format see:
-http://heasarc.gsfc.nasa.gov/docs/heasarc/caldb/docs/summary/cal_gen_92_002_summary.html
-
-"""
+#===========================================================================
+# Main
 
 #----------------------------------------------------------------------
 # SETUP
@@ -70,11 +64,11 @@ erange = 10. ** np.linspace(-2., 2., 17) # E_true [TeV]
 # Recommended units are keV and cm^2, but TeV and m^2 are chosen
 # as the more natural units for IACTs
 tbhdu = pyfits.new_table(
-    [pyfits.Column(name='ENERGY_LO',
+    [pyfits.Column(name='ENERG_LO',
                   format='1E',
                   array=erange[:-1],
                   unit='TeV'),
-     pyfits.Column(name='ENERGY_HI',
+     pyfits.Column(name='ENERG_HI',
                   format='1E',
                   array=erange[1:],
                   unit='TeV'),
