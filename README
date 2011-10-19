@@ -21,15 +21,15 @@ moment it is developed and maintained by Martin Raue (martin.raue@desy.de).
 ============
 REQUIREMENTS
 
-The module is written for Python 2.6 and requires the following python packages to be installed:
+The module is written for Python 2.6++ and requires the following python packages to be installed:
 
-* numpy 1.5.1
+* numpy 1.5.1 or higher
   http://numpy.scipy.org/
 
-* scipy 0.9.0
+* scipy 0.9.0 or higher
   http://www.scipy.org/
 
-* pyfits 3.0.0
+* pyfits 3.0.0 or higher
   http://www.stsci.edu/resources/software_hardware/pyfits/
 
 The data needs to be in CTA FITS format v1.0.0 or higher.
@@ -51,7 +51,7 @@ USAGE
 ------
 BASICS
 
-Tasks are performed using the python scripts located in the pyfact-vX.X.X/scripts folder. The scripts are excecutable python scripts. To execute them simply type something like:
+Tasks are performed using the python scripts located in the scripts/ folder. The scripts are excecutable python scripts. To execute them simply type:
 
 ./scripts/pfmap.py
 
@@ -69,13 +69,10 @@ The scripts come with a builtin help text, which is displayed when the scripts a
 ./scripts/pfmap.py -h
 ./scripts/pfmap.py --help
 
------
-PFMAP
-
 ========
 EXAMPLES
 
-In the examples/ folder example scripts can be found illustrating standard task like creating RMF and ARF files from numpy arrays.
+In the examples/ folder example scripts can be found illustrating how to implement standard tasks e.g. creating RMF and ARF files from numpy arrays.
 
 ==================
 FEEDBACK & SUPPORT
