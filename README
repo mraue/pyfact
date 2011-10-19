@@ -1,8 +1,8 @@
 +-------------------------------------------------+
 |  [Py]thon +                                     |
 |  [F]ITS                                         |
-|  [A]nalysis for                     < v0.0.2 >  |
-|  [C]herenkov                      Sep 19, 2011  |
+|  [A]nalysis for                     < v0.0.3 >  |
+|  [C]herenkov                      Oct 19, 2011  |
 |  [T]elescopes                                   |
 +-------------------------------------------------+
 
@@ -23,8 +23,7 @@ REQUIREMENTS
 
 The module is written for Python 2.6 and requires the following python packages to be installed:
 
-* numpy 1.5.1 (1.6.0 is currently producing a memory leak together
-  with pyfits)
+* numpy 1.5.1
   http://numpy.scipy.org/
 
 * scipy 0.9.0
