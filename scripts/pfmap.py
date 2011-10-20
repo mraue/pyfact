@@ -85,7 +85,7 @@ def create_sky_map(input_file_name,
 
     # Skymap definition
     #skymap_size, skymap_bin_size = 6., 0.05
-    rexdeg = .25
+    rexdeg = .4
 
     # Intialize some variables
     objra, objdec, pntra, pntdec = None, None, None, None
@@ -112,6 +112,8 @@ def create_sky_map(input_file_name,
 
     firstloop = True
 
+    exposure = 0.
+
     # Read in input file, can be individual fits or bankfile
     logging.info('Opening input file ..')
 
@@ -129,7 +131,7 @@ def create_sky_map(input_file_name,
         f = open(input_file_name)
         for l in f:
             l = l.strip(' \t\n')
-            if l :
+            if l  and (l[0] is not '#'):
                 file_list.append(l)
         f.close()
 
@@ -208,7 +210,12 @@ def create_sky_map(input_file_name,
         pntra, pntdec = ex1hdr['RA_PNT'], ex1hdr['DEC_PNT']
         obj_cam_dist = pf.SkyCoord(objra, objdec).dist(pf.SkyCoord(pntra, pntdec))
 
-        logging.debug('Object camera distance = {0}'.format(obj_cam_dist))
+        exposure_run = ex1hdr['LIVETIME']
+        exposure += exposure_run
+
+        logging.debug('Exposure run = {0:.2f} s'.format(exposure_run))
+        logging.debug('Pointing position: RA {0:.4f} [deg], Dec {1:.4f} [deg]'.format(pntra, pntdec))
+        logging.debug('Object camera distance = {0:.4f} [deg]'.format(obj_cam_dist))
         
         # Most important cut for the acceptance calculation: exclude source region
         exmask = np.invert(np.sqrt(((tbdata.field('RA      ') - objra) / np.cos(objdec * np.pi / 180.)) ** 2.
@@ -230,8 +237,15 @@ def create_sky_map(input_file_name,
             exreg=[[rexdeg, obj_cam_dist]],
             fit=True
             )
-        logging.debug('Camera acceptance photons fit probablity: {0}'.format(fitter.prob))
-        #fitter.print_results()
+
+        # DEBUG
+        if logging.root.level is logging.DEBUG :
+            fitter.print_results()
+
+        # DEBUG plot
+        #plt.errorbar(r, n / r_a / (1. - ex_a), nerr / r_a / (1. - ex_a))
+        #plt.plot(r, fitter.fitfunc(fitter.results[0], r))
+        #plt.show()
 
         had_acc, had_n, had_fit = None, None, None
         if template_background :
@@ -246,7 +260,7 @@ def create_sky_map(input_file_name,
                 #p0=[500.,0., 1.5, 3., -5.]
                 )
             had_n, had_fit = had_acc[0], had_acc[6]
-            logging.debug('Camera acceptance hadrons fit probablity: {0}'.format(had_fit.prob))
+            logging.debug('Camera acceptance hadrons fit probability: {0}'.format(had_fit.prob))
 
         #if firstloop :
             #plt.figure(3)
@@ -268,6 +282,9 @@ def create_sky_map(input_file_name,
         accept = fitter.fitfunc(p1, photbdata.field('XCAMDIST')) / fitter.fitfunc(p1, .1)
         m = photbdata.field('XCAMDIST') > 4.
         accept[m] = fitter.fitfunc(p1, 4.) / fitter.fitfunc(p1, .1)
+
+        # DEBUG
+        #accept = np.ones(len(accept))
 
         tpl_acc_cor_use_interp = True
         tpl_acc_f, tpl_acc = None, None
@@ -313,20 +330,35 @@ def create_sky_map(input_file_name,
             sky_hist = sky[0]
 
             sky_ex_reg = pf.get_exclusion_region_map(sky_hist, (sky_ra_min, sky_ra_max), (sky_dec_min, sky_dec_max),
-                                                     [pf.SkyCircle(pf.SkyCoord(objra, objdec), .2)])
+                                                     [pf.SkyCircle(pf.SkyCoord(objra, objdec), rexdeg)])
 
         else :
             sky_hist += sky[0]
 
-        # Create acceptance corrected sky map
-        acc = np.histogram2d(x=photbdata.field('DEC     '), y=photbdata.field('RA      '),
-                             bins=[skymap_nbins, skymap_nbins],
-                             weights=1./accept,
-                             range=[[sky_dec_min, sky_dec_max], [sky_ra_min, sky_ra_max]])
+        ## Create acceptance corrected sky map
+        #acc = np.histogram2d(x=photbdata.field('DEC     '), y=photbdata.field('RA      '),
+        #                     bins=[skymap_nbins, skymap_nbins],
+        #                     weights=1./accept,
+        #                     range=[[sky_dec_min, sky_dec_max], [sky_ra_min, sky_ra_max]])
+        # New acceptance !
+        dec_a = np.linspace(sky_dec_min, sky_dec_max, skymap_nbins + 1)
+        ra_a = np.linspace(sky_ra_min, sky_ra_max, skymap_nbins + 1)
+        xx, yy = np.meshgrid((ra_a[:-1] + ra_a[1:]) / 2. - pntra, (dec_a[:-1] + dec_a[1:]) / 2. - pntdec)
+        rr = np.sqrt(xx ** 2. + yy ** 2.)
+        acc = fitter.fitfunc(p1, rr) / fitter.fitfunc(p1, .1)
+        m = rr > 4.
+        acc[m] = fitter.fitfunc(p1, 4.) / fitter.fitfunc(p1, .1)
+
+        # DEBUG plot
+        #plt.imshow(acc[::-1], extent=extent, interpolation='nearest')
+        #plt.colorbar()
+        #plt.title('acc_bg_overs')
+        #plt.show()
+        
         if firstloop :
-            acc_hist = acc[0]
+            acc_hist = acc * exposure_run # acc[0] before
         else :
-            acc_hist += acc[0]
+            acc_hist += acc * exposure_run # acc[0] before
 
         if template_background :
             # Create hadron event like map for template background
@@ -366,6 +398,7 @@ def create_sky_map(input_file_name,
     # Calculate oversampled skymap, ring background, excess, and significances
     sc = pf.get_sky_mask_circle(r_overs, skymap_bin_size)
     sr = pf.get_sky_mask_ring(ring_bg_r_min, ring_bg_r_max, skymap_bin_size)
+    acc_hist /= exposure
 
     logging.info('Calculating oversampled event map ..')
     sky_overs, sky_overs_alpha = pf.oversample_sky_map(sky_hist, sc)
@@ -379,10 +412,62 @@ def create_sky_map(input_file_name,
     logging.info('Calculating oversampled ring background acceptance map ..')
     acc_bg_overs, acc_bg_overs_alpha = pf.oversample_sky_map(acc_hist, sr, sky_ex_reg)
 
-    sky_alpha = sky_overs_alpha / sky_bg_ring_alpha # geometry
-    sky_alpha *=  acc_bg_overs / sky_bg_ring / acc_overs * sky_overs # camera acceptance
+    #sky_alpha = sky_overs_alpha / sky_bg_ring_alpha # geometry
+    #sky_alpha =  acc_bg_overs / sky_bg_ring / acc_overs * sky_overs # camera acceptance
+    sky_alpha = acc_overs / acc_bg_overs# camera acceptance
     sky_excess = sky_overs - sky_bg_ring * sky_alpha
     sky_sign = pf.get_li_ma_sign(sky_overs, sky_bg_ring, sky_alpha)
+
+    ## DEBUG plot
+    ##plt.hist(sky_excess.flatten(), bins=100, range=[-50., 50.])
+    ##plt.show()
+    #plt.figure(figsize=(10,8))
+    #plt.subplot(221)
+    #plt.imshow(acc_bg_overs[::-1], extent=extent, interpolation='nearest')
+    #plt.colorbar()
+    #plt.title('acc_bg_overs')
+    ##plt.show()
+    #plt.subplot(222)
+    #plt.imshow(sky_bg_ring[::-1], extent=extent, interpolation='nearest')
+    #plt.colorbar()
+    #plt.title('sky_bg_ring')
+    ##plt.show()
+    #plt.subplot(223)
+    #plt.imshow(acc_overs[::-1], extent=extent, interpolation='nearest')
+    #plt.colorbar()
+    #plt.title('acc_overs')
+    ##plt.show()
+    #plt.subplot(224)
+    #plt.imshow(sky_overs[::-1], extent=extent, interpolation='nearest')
+    #plt.colorbar()
+    #plt.title('sky_overs')
+    ##plt.show()
+    #plt.figure(figsize=(10,8))
+    #plt.subplot(221)
+    #plt.imshow((acc_bg_overs/acc_bg_overs_alpha)[::-1], extent=extent, interpolation='nearest')
+    #plt.colorbar()
+    #plt.title('acc_bg_overs/acc_bg_overs_alpha')
+    ##plt.show()
+    #plt.subplot(222)
+    #plt.imshow((acc_overs/acc_overs_alpha)[::-1], extent=extent, interpolation='nearest')
+    #plt.colorbar()
+    #plt.title('acc_overs/acc_overs_alpha')
+    ##plt.show()
+    #plt.subplot(223)
+    #plt.imshow((acc_bg_overs/sky_bg_ring)[::-1], extent=extent, interpolation='nearest')
+    #plt.colorbar()
+    #plt.title('acc_bg_overs/sky_bg_ring')
+    ##plt.show()
+    #plt.subplot(224)
+    #plt.imshow((acc_overs/sky_overs)[::-1], extent=extent, interpolation='nearest')
+    #plt.colorbar()
+    #plt.title('acc_overs/sky_overs')
+    ##plt.show()
+    ##plt.subplot(224)
+    ##plt.imshow((acc_bg_overs / sky_bg_ring / acc_overs * sky_overs)[::-1], extent=extent, interpolation='nearest')
+    ##plt.colorbar()
+    ##plt.title('alpha')
+    #plt.show()
 
     tpl_had_overs, tpl_sig_overs, tpl_exc_overs, tpl_alpha_overs = None, None, None, None
     if template_background :
