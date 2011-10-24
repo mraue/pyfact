@@ -172,8 +172,8 @@ def sim_evlist(flux=.1,
     #plt.figure(1)
     #plt.semilogy(log_e_steps[:-1], int_rate_s, 'o', label='PRE RMF')
     ##plt.plot(log_e_steps[:-1], int_rate_s, 'o', label='PRE RMF')
-    ##if rmf :
-    ##    plt.semilogy(np.log10(rm_ebounds[:-1]), int_rate, '+', label='POST RMF')
+    #if rmf :
+    #    plt.semilogy(np.log10(rm_ebounds[:-1]), int_rate, '+', label='POST RMF')
     #plt.ylim(1E-6,1.)
     #plt.legend()
     #plt.show()
@@ -189,15 +189,17 @@ def sim_evlist(flux=.1,
 
     # Filter out low and high values to avoid spline problems at the edges
     istart = np.sum(int_rate == 0.) - 1
-    istop = np.sum(int_rate / int_all > 1. - 1e-5) # This value dictates the dynamic range at the high energy end
+    if istart < 0 :
+        istart = 0
+    istop = np.sum(int_rate / int_all > 1. - 1e-4) # This value dictates the dynamic range at the high energy end
 
     D('istart = {0}, istop = {1}', istart, istop)
 
-    ## DEBUG plots
+    # DEBUG plots
     #plt.plot(int_rate[istart:-istop] / int_all, log_e_steps[istart + 1:-istop], '+')
     #plt.show()
 
-    ## DEBUG plots
+    # DEBUG plots
     #plt.hist(int_rate[istart:-istop] / int_all)
     #plt.show()
 
@@ -469,7 +471,7 @@ def sim_evlist(flux=.1,
             chan = np.arange(len(dat))
             # Data to PHA
             tbhdu = pf.np_to_pha(dat=dat, dat_err=dat_err, chan=chan, exposure=obstime, obj_ra=obj_ra, obj_dec=obj_dec,
-                                 dstart=dstart, dstop=dstop, dbase=dbase, creator='pfsime', version=pf.__version__,
+                                 dstart=dstart, dstop=dstop, dbase=dbase, creator='pfsim', version=pf.__version__,
                                  telescope='CTASIM')
             # Write PHA to file
             tbhdu.writeto('{0}.pha.fits'.format(output_filename_base))
