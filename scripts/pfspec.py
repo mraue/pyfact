@@ -53,10 +53,11 @@ import pyfact as pf
 
 #===========================================================================
 # Main
-def create_spectrum(input_file_name,
+def create_spectrum(input_file_names,
                     analysis_position=None,
                     analysis_radius=.125,
-                    match_arf=None,
+                    match_rmf=None,
+                    datadir='',
                     output_filename_base=None,
                     do_graphical_output=True,
                     loglevel='INFO') :
@@ -101,13 +102,13 @@ def create_spectrum(input_file_name,
 
     spec_nbins, spec_emin, spec_emax = 40, -2., 2.
     telescope, instrument = 'DUMMY', 'DUMMY'
-    if match_arf:
-        logging.info('Matching PHA binning to ARF file: {0}'.format(match_arf))
-        f = pyfits.open(match_arf)
-        ea, ea_erange = pf.arf_to_np(f[1])
-        spec_nbins = len(ea)
-        spec_emin = np.log10(ea_erange[0])
-        spec_emax = np.log10(ea_erange[-1])
+    if match_rmf:
+        logging.info('Matching total PHA binning to RMF file: {0}'.format(match_rmf))
+        f = pyfits.open(match_rmf)
+        rm, erange, ebounds, minprob = pf.rmf_to_np(f)
+        spec_nbins = (len(ebounds) - 1)
+        spec_emin = np.log10(ebounds[0])
+        spec_emax = np.log10(ebounds[-1])
         instrument = f[1].header['INSTRUME']
         telescope = f[1].header['TELESCOP']
         f.close()
@@ -122,46 +123,31 @@ def create_spectrum(input_file_name,
     # Read in input file, can be individual fits or bankfile
     logging.info('Opening input file(s) ..')
 
-    # This list will hold the individual file names as strings (data and ARF if specified)
-    file_list, arf_list = [], []
-    arf, arf_erange = None, None
+    # This list will hold the individual file names as strings
+    file_list = None
+    arf_m, arf_m_erange = None, None
     useARF = True
 
     # Check if we are dealing with a single file or a bankfile
     # and create/read in the file list accordingly
     try :
-        f = pyfits.open(input_file_name)
+        f = pyfits.open(input_file_names[0])
         f.close()
-        file_list = [input_file_name]
+        file_list = input_file_names
     except :
-        # We are dealing with a bankfile
-        f = open(input_file_name)
-        hasARF = False
-        for l in f:
-            l = l.strip(' \t\n')
-            if l and l[0] is not '#':
-                ls = l.split()
-                if len(ls) > 1 and useARF :
-                    file_list.append(ls[0])
-                    arf_list.append(ls[1])
-                else :
-                    file_list.append(ls[0])
-                    if useARF :
-                        logging.warning('useARF is specified but did not find ARF in line: {0}'.format(l))
-                        logging.warning('Setting useARF to False')
-                    useARF = False
-                    
-        f.close()
+        logging.info('Reading files from batchfile {0}'.format(input_file_names[0]))
+        file_list = np.loadtxt(input_file_names[0], dtype='S')
 
     # Shortcuts for commonly used functions
     cci_f, cci_a = pf.circle_circle_intersection_f, pf.circle_circle_intersection_a
 
-    for i, file_name in enumerate(file_list) :
-
-        logging.info('Processing file {0}'.format(file_name))
+    for files in file_list :
+        
+        dataf, arf, rmf = datadir + files[0], datadir + files[1], datadir + files[2]
+        logging.info('Processing file {0}'.format(dataf))
 
         # Open fits file
-        hdulist = pyfits.open(file_name)
+        hdulist = pyfits.open(dataf)
 
         # Print file info
         #hdulist.info()
@@ -199,10 +185,11 @@ def create_spectrum(input_file_name,
         logging.info('RUN Pointing pos.   : RA {0:.4f} [deg], Dec {1:.4f} [deg]'.format(pntra, pntdec))
         logging.info('RUN Obj. cam. dist. : {0:.4f} [deg]'.format(obj_cam_dist))
 
-        print [int(x) for x in (ex1hdr['DATE_OBS'].split('-') +  ex1hdr['TIME_OBS'].split(':'))]
+        run_dstart = datetime.datetime(*[int(x) for x in (ex1hdr['DATE_OBS'].split('-') +  ex1hdr['TIME_OBS'].split(':'))])
+        run_dstop = datetime.datetime(*[int(x) for x in (ex1hdr['DATE_END'].split('-') + ex1hdr['TIME_END'].split(':'))])
         if firstloop :
-            dstart = datetime.datetime(*[int(x) for x in (ex1hdr['DATE_OBS'].split('-') +  ex1hdr['TIME_OBS'].split(':'))])
-        dstop = datetime.datetime(*[int(x) for x in (ex1hdr['DATE_END'].split('-') + ex1hdr['TIME_END'].split(':'))])
+            dstart = run_dstart
+        dstop = run_dstop
 
         # Distance from the camera (FOV) center
         camdist = np.sqrt(tbdata.field('DETX    ') ** 2. + tbdata.field('DETY    ') ** 2.)
@@ -264,7 +251,8 @@ def create_spectrum(input_file_name,
                              * (photbdata.field('XCAMDIST') > obj_cam_dist - analysis_radius)
                              * np.invert(photbdata.field('XTHETA') < rexdeg))]
 
-        spec_on_hist += np.histogram(np.log10(on_run.field('ENERGY')), bins=spec_nbins, range=(spec_emin, spec_emax))[0]
+        spec_on_run_hist = np.histogram(np.log10(on_run.field('ENERGY')), bins=spec_nbins, range=(spec_emin, spec_emax))[0]
+        spec_on_hist += spec_on_run_hist
         
         non_run, noff_run = len(on_run), len(off_run)
         
@@ -279,20 +267,21 @@ def create_spectrum(input_file_name,
                                                cci_f(obj_cam_dist - analysis_radius, rexdeg, obj_cam_dist) / np.pi
                                                )
                       )
-        spec_off_hist += np.histogram(np.log10(off_run.field('ENERGY')), bins=spec_nbins, range=(spec_emin, spec_emax))[0]
+        spec_off_run_hist = np.histogram(np.log10(off_run.field('ENERGY')), bins=spec_nbins, range=(spec_emin, spec_emax))[0]
+        spec_off_hist += spec_off_run_hist
         spec_off_cor_hist += spec_off_hist * alpha_run
         
         def print_stats(non, noff, alpha, pre='') :
-            logging.debug(pre + 'N_ON = {0}, N_OFF = {1}, ALPHA = {2:.4f}'.format(non, noff, alpha))
-            logging.debug(pre + 'EXCESS = {0:.2f}, SIGN = {1:.2f}'.format(non - alpha * noff, pf.get_li_ma_sign(non, noff, alpha)))
+            logging.info(pre + 'N_ON = {0}, N_OFF = {1}, ALPHA = {2:.4f}'.format(non, noff, alpha))
+            logging.info(pre + 'EXCESS = {0:.2f}, SIGN = {1:.2f}'.format(non - alpha * noff, pf.get_li_ma_sign(non, noff, alpha)))
 
         non += non_run
         noff += noff_run
         noffcor += alpha_run * noff_run
 
-        print_stats(non_run, noff_run, alpha_run, 'Run: ')
-        print_stats(non, noff, noffcor/noff, 'All: ')
-        
+        print_stats(non_run, noff_run, alpha_run, 'RUN ')
+        print_stats(non, noff, noffcor/noff, 'TOTAL ')
+
         theta2_on_hist += np.histogram(photbdata.field('XTHETA') ** 2., bins=theta2_hist_nbins, range=(0., theta2_hist_max))[0]
 
         theta2_off_run_hist, theta2_off_run_hist_edges = np.histogram(np.fabs((photbdata[np.invert(photbdata.field('XTHETA') < rexdeg)].field('XCAMDIST') - obj_cam_dist)** 2.), bins=theta2_hist_nbins, range=(0., theta2_hist_max))
@@ -321,27 +310,58 @@ def create_spectrum(input_file_name,
 
         # Average ARF files
         if useARF :
-            logging.info('RUN Reading ARF from : {0}'.format(arf_list[i]))
-            f = pyfits.open(arf_list[i])
+            logging.info('RUN Reading ARF from : {0}'.format(arf))
+            f = pyfits.open(arf)
             ea, ea_erange = pf.arf_to_np(f[1])
+            f.close()
             if firstloop:
-                arf = ea * exposure_run
-                arf_erange = ea_erange
+                arf_m = ea * exposure_run
+                arf_m_erange = ea_erange
             else :
-                if np.sum(np.fabs(ea_erange - arf_erange)) < 1E-5 :
-                    arf += ea * exposure_run
+                if np.sum(np.fabs(ea_erange - arf_m_erange)) < 1E-5 :
+                    arf_m += ea * exposure_run
                 else :
                     logging.error('Different ARF binning for file: {0}'.format(arf_list[i]))
-                    logging.error('Deactiving ARF calculation')
+                    logging.error('Deactiving average ARF calculation')
                     useARF = False
-            f.close()
+
+            # Open run RMF file
+            f = pyfits.open(rmf)
+            rm, erange, ebounds, minprob = pf.rmf_to_np(f)
+
+            # Bin data to match EBOUNDS from RMF
+            spec_on_run_hist = np.histogram(on_run.field('ENERGY'), bins=ebounds)[0]
+            spec_off_run_hist = np.histogram(off_run.field('ENERGY'), bins=ebounds)[0]
+
+            # Prepare data
+            dat = spec_on_run_hist - alpha_run * spec_off_run_hist # ON - alpha x OFF = Excess
+            dat_err = np.sqrt(spec_on_run_hist + spec_off_run_hist * alpha_run ** 2.)
+            quality = np.where(((spec_on_run_hist == 0) | (spec_off_run_hist == 0)), 1, 0) # Set quality flags
+            chan = np.arange(len(dat))
+
+            # DEBUG plot
+            #plt.errorbar(spec_hist_ebounds[:-1], dat, yerr=dat_err)
+            #plt.show()
         
+            # Data to PHA
+            tbhdu = pf.np_to_pha(dat=dat, dat_err=dat_err, chan=chan, exposure=exposure_run, quality=quality,
+                                 obj_ra=objra, obj_dec=objdec,
+                                 dstart=run_dstart, dstop=run_dstop, creator='pfspec', version=pf.__version__,
+                                 telescope=telescope, instrument=instrument)
+            # Write PHA to file
+            tbhdu.header.update('ANCRFILE', os.path.basename(arf), 'Ancillary response file (ARF)')
+            tbhdu.header.update('RESPFILE', os.path.basename(rmf), 'Redistribution matrix file (RMF)')
+            tbhdu.writeto(os.path.basename(dataf[:dataf.find('.fits')]) + '.pha.fits')
+
+
+        hdulist.close()
+
         firstloop = False
 
     #---------------------------------------------------------------------------
     # Write results to file
 
-    arf /= exposure
+    arf_m /= exposure
 
     if output_filename_base :
         logging.info('Writing result to file ..')
@@ -349,24 +369,27 @@ def create_spectrum(input_file_name,
         logging.info('The output files can be found in {0}'.format(out_dir))
 
         # Prepare data
-        dat = spec_on_hist - spec_off_cor_hist
+        dat = spec_on_hist - spec_off_cor_hist # ON - alpha x OFF = Excess
         dat_err = np.sqrt(spec_on_hist + spec_off_hist* (spec_off_cor_hist / spec_off_hist) ** 2.)
+        quality = np.where(((spec_on_hist == 0) | (spec_off_hist == 0)), 1, 0) # Set quality flags
+        chan = np.arange(len(dat))
 
         # DEBUG plot
         plt.errorbar(spec_hist_ebounds[:-1], dat, yerr=dat_err)
         plt.show()
         
-        chan = np.arange(len(dat))
         # Data to PHA
-        tbhdu = pf.np_to_pha(dat=dat, dat_err=dat_err, chan=chan, exposure=exposure, obj_ra=objra, obj_dec=objdec,
+        tbhdu = pf.np_to_pha(dat=dat, dat_err=dat_err, chan=chan, exposure=exposure, quality=quality,
+                             obj_ra=objra, obj_dec=objdec,
                              dstart=dstart, dstop=dstop, creator='pfspec', version=pf.__version__,
                              telescope=telescope, instrument=instrument)
         # Write PHA to file
-        tbhdu.writeto('{0}.pha.fits'.format(output_filename_base))
+        tbhdu.header.update('ANCRFILE', os.path.basename(output_filename_base + '.arf.fits'), 'Ancillary response file (ARF)')
+        tbhdu.writeto(output_filename_base + '.pha.fits')
 
         # Write ARF
         if useARF :
-            tbhdu = pf.np_to_arf(arf, arf_erange, telescope=telescope, instrument=instrument)
+            tbhdu = pf.np_to_arf(arf_m, arf_m_erange, telescope=telescope, instrument=instrument)
             tbhdu.writeto(output_filename_base + '.arf.fits')
 
     #---------------------------------------------------------------------------
@@ -427,7 +450,7 @@ if __name__ == '__main__':
     # http://docs.python.org/library/argparse.html#module-argparse
     import optparse
     parser = optparse.OptionParser(
-        usage='%prog [options] FILE\nFILE can either be an indiviual .fits/.fits.gz file or a batch file.',
+        usage='%prog [options] FILE [ARF RMF]\nFILE can either be an indiviual .fits/.fits.gz file or a batch file.\nIn case it is a individual file, the ARF and RMF must also be specified. The bankfile must contain three columns: data file, ARF, and RMF.',
         description='Creates spectra from VHE event lists in FITS format.'
     )
     parser.add_option(
@@ -445,11 +468,18 @@ if __name__ == '__main__':
         help='Aperture for the analysis in degree [default: %default].'
     )
     parser.add_option(
-        '-m','--match-pha-to-arf',
-        dest='match_arf',
+        '-m','--match-pha-to-rmf',
+        dest='match_rmf',
         type='string',
         default=None,
-        help='ARF filename to which the PHA file binning is matched [default: %default].'
+        help='RMF filename to which the average PHA file binning is matched [default: %default].'
+    )
+    parser.add_option(
+        '-d','--data-dir',
+        dest='datadir',
+        type='string',
+        default='',
+        help='Directory in which the data is located. Will be added as prefix to the entries in the bankfile [default: %default].'
     )
     parser.add_option(
         '-o','--output-filename-base',
@@ -474,12 +504,13 @@ if __name__ == '__main__':
 
     options, args = parser.parse_args()
 
-    if len(args) == 1 :
+    if len(args) == 1 or len(args) == 3 :
         create_spectrum(
-            input_file_name=args[0],
+            input_file_names=args,
             analysis_position=options.analysis_position,
             analysis_radius=options.analysis_radius,
-            match_arf=options.match_arf,
+            match_rmf=options.match_rmf,
+            datadir=options.datadir,
             output_filename_base=options.output_filename_base,
             do_graphical_output=options.graphical_output,
             loglevel=options.loglevel

@@ -319,12 +319,16 @@ def np_to_rmf(rm, erange, ebounds, minprob,
          ]
         )
 
+    chan_min, chan_max, chan_n = 0, rm.shape[0] - 1, rm.shape[0]
+    
     tbhdu2.header.update('EXTNAME ', 'EBOUNDS', 'Name of this binary table extension')
     tbhdu2.header.update('TELESCOP', telescope, 'Mission/satellite name')
     tbhdu2.header.update('INSTRUME', instrument, 'Instrument/detector')
     tbhdu2.header.update('FILTER  ', filter, 'Filter information')    
     tbhdu2.header.update('CHANTYPE', 'PHA', 'Type of channels (PHA, PI etc)')
     tbhdu2.header.update('DETCHANS', chan_n, 'Total number of detector PHA channels')
+    tbhdu2.header.update('TLMIN1  ', chan_min, 'First legal channel number')
+    tbhdu2.header.update('TLMAX1  ', chan_max, 'Highest legal channel number')
     tbhdu2.header.update('HDUCLASS', 'OGIP', 'Organisation devising file format')
     tbhdu2.header.update('HDUCLAS1', 'RESPONSE', 'File relates to response of instrument')
     tbhdu2.header.update('HDUCLAS2', 'EBOUNDS', 'This is an EBOUNDS extension')
@@ -357,6 +361,7 @@ def np_to_rmf(rm, erange, ebounds, minprob,
 
     return hdulist
 
+#---------------------------------------------------------------------------
 def rmf_to_np(hdulist) :
     """
     Converts an RMF FITS hdulist into numpy arrays
@@ -408,7 +413,7 @@ def rmf_to_np(hdulist) :
     return (rm, erange, ebounds, minprob)
 
 #---------------------------------------------------------------------------
-def np_to_pha(dat, dat_err, chan, exposure, dstart, dstop, dbase=None,
+def np_to_pha(dat, dat_err, chan, exposure, dstart, dstop, dbase=None, quality=None, syserr=None,
               obj_ra=0., obj_dec=0., obj_name='DUMMY', creator='DUMMY',
               version='v0.0.0', telescope='DUMMY', instrument='DUMMY', filter_='NONE') :
     """
@@ -430,6 +435,10 @@ def np_to_pha(dat, dat_err, chan, exposure, dstart, dstop, dbase=None,
         Observation stop time.
     dbase : datetime
         Base date used for TSTART/TSTOP.
+    quality : numpy 1D array integer
+        Quality flags for the channels (optional)
+    syserr : numpy 1D array float
+        Fractional systematic error for the channel (optional)
     obj_ra/obj_dec : float
         Object RA/DEC J2000 [deg]
 
@@ -439,21 +448,30 @@ def np_to_pha(dat, dat_err, chan, exposure, dstart, dstop, dbase=None,
     http://heasarc.gsfc.nasa.gov/docs/heasarc/ofwg/docs/summary/ogip_92_007_summary.html
     """
     # Create PHA FITS table extension from data
-    tbhdu = pyfits.new_table(
-        [pyfits.Column(name='CHANNEL',
-                      format='I',
-                      array=chan,
-                      unit='channel'),
-         pyfits.Column(name='COUNTS',
-                      format='1E',
-                      array=dat,
-                      unit='count'),
-         pyfits.Column(name='STAT_ERR',
-                      format='1E',
-                      array=dat_err,
-                      unit='count')
-         ]
-        )
+    cols = [pyfits.Column(name='CHANNEL',
+                          format='I',
+                          array=chan,
+                          unit='channel'),
+            pyfits.Column(name='COUNTS',
+                          format='1E',
+                          array=dat,
+                          unit='count'),
+            pyfits.Column(name='STAT_ERR',
+                          format='1E',
+                          array=dat_err,
+                          unit='count')
+            ]
+    if quality is not None :
+        cols.append(pyfits.Column(name='QUALITY',
+                                  format='I',
+                                  array=quality))
+    if syserr is not None :
+        cols.append(pyfits.Column(name='SYS_ERR',
+                                  format='E',
+                                  array=syserr))
+
+
+    tbhdu = pyfits.new_table(cols)
 
     tbhdu.header.update('EXTNAME ', 'SPECTRUM'          , 'name of this binary table extension')
     tbhdu.header.update('TELESCOP', telescope, 'Telescope (mission) name')
@@ -474,8 +492,8 @@ def np_to_pha(dat, dat_err, chan, exposure, dstart, dstop, dbase=None,
 
     tbhdu.header.update('CHANTYPE', 'PHA', 'Channels assigned by detector electronics')
     tbhdu.header.update('DETCHANS', len(chan), 'Total number of detector channels available')
-    tbhdu.header.update('TLMIN2  ', chan[0], 'Lowest Legal channel number')
-    tbhdu.header.update('TLMAX2  ', chan[-1], 'Highest Legal channel number')
+    tbhdu.header.update('TLMIN1  ', chan[0], 'Lowest Legal channel number')
+    tbhdu.header.update('TLMAX1  ', chan[-1], 'Highest Legal channel number')
 
     tbhdu.header.update('XFLT0001', 'none', 'XSPEC selection filter description')
     tbhdu.header.update('OBJECT  ', obj_name, 'OBJECT from the FIRST input file')
@@ -495,9 +513,11 @@ def np_to_pha(dat, dat_err, chan, exposure, dstart, dstop, dbase=None,
     tbhdu.header.update('HDUCLAS4', 'TYPE:I', 'Single PHA file contained')
     tbhdu.header.update('HDUVERS1', '1.2.1', 'Obsolete - included for backwards compatibility')
 
-    tbhdu.header.update('SYS_ERR ', 0, 'No systematic error was specified')
+    if syserr is None :
+        tbhdu.header.update('SYS_ERR ', 0, 'No systematic error was specified')
     tbhdu.header.update('GROUPING', 0, 'No grouping data has been specified')
-    tbhdu.header.update('QUALITY ', 0, 'No data quality information specified')
+    if quality is None :
+        tbhdu.header.update('QUALITY ', 0, 'No data quality information specified')
     tbhdu.header.update('AREASCAL', 1., 'Nominal effective area')
     tbhdu.header.update('BACKSCAL', 1., 'Background scale factor')
     tbhdu.header.update('CORRSCAL', 0., 'Correlation scale factor')
