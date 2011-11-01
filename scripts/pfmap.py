@@ -131,8 +131,8 @@ def create_sky_map(input_file_name,
         f = open(input_file_name)
         for l in f:
             l = l.strip(' \t\n')
-            if l  and (l[0] is not '#'):
-                file_list.append(l)
+            if l and (l[0] is not '#'):
+                file_list.append(l.split()[0])
         f.close()
 
     for file_name in file_list :

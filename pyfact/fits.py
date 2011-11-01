@@ -413,7 +413,7 @@ def rmf_to_np(hdulist) :
     return (rm, erange, ebounds, minprob)
 
 #---------------------------------------------------------------------------
-def np_to_pha(dat, dat_err, chan, exposure, dstart, dstop, dbase=None, quality=None, syserr=None,
+def np_to_pha(channel, counts, exposure, dstart, dstop, dbase=None, stat_err=None, quality=None, syserr=None,
               obj_ra=0., obj_dec=0., obj_name='DUMMY', creator='DUMMY',
               version='v0.0.0', telescope='DUMMY', instrument='DUMMY', filter_='NONE') :
     """
@@ -421,11 +421,11 @@ def np_to_pha(dat, dat_err, chan, exposure, dstart, dstop, dbase=None, quality=N
 
     Parameters
     ----------
-    dat : numpy 1D array
+    dat : numpy 1D array float
         Binned spectral data [counts]
-    dat_err : numpy 1D array
+    dat_err : numpy 1D array float
         Statistical errors associated with dat [counts]
-    chan : numpu 1D array
+    chan : numpu 1D array int
         Corresponding channel numbers for dat
     exposure : float
         Exposure [s]
@@ -450,26 +450,29 @@ def np_to_pha(dat, dat_err, chan, exposure, dstart, dstop, dbase=None, quality=N
     # Create PHA FITS table extension from data
     cols = [pyfits.Column(name='CHANNEL',
                           format='I',
-                          array=chan,
+                          array=channel,
                           unit='channel'),
             pyfits.Column(name='COUNTS',
                           format='1E',
-                          array=dat,
-                          unit='count'),
-            pyfits.Column(name='STAT_ERR',
-                          format='1E',
-                          array=dat_err,
+                          array=counts,
                           unit='count')
             ]
-    if quality is not None :
-        cols.append(pyfits.Column(name='QUALITY',
-                                  format='I',
-                                  array=quality))
+
+    if stat_err is not None :
+        cols.append(pyfits.Column(name='STAT_ERR',
+                                  format='1E',
+                                  array=stat_err,
+                                  unit='count'))
+    
     if syserr is not None :
         cols.append(pyfits.Column(name='SYS_ERR',
                                   format='E',
                                   array=syserr))
 
+    if quality is not None :
+        cols.append(pyfits.Column(name='QUALITY',
+                                  format='I',
+                                  array=quality))
 
     tbhdu = pyfits.new_table(cols)
 
@@ -479,8 +482,8 @@ def np_to_pha(dat, dat_err, chan, exposure, dstart, dstop, dbase=None, quality=N
     tbhdu.header.update('FILTER  ', filter_, 'Instrument filter in use')
     tbhdu.header.update('EXPOSURE', exposure, 'Exposure time')
 
-    tbhdu.header.update('BACKFILE', 'none', 'Background FITS file for this object')
-    tbhdu.header.update('CORRFILE', 'none', 'Correlation FITS file for this object')
+    tbhdu.header.update('BACKFILE', 'none', 'Background FITS file')
+    tbhdu.header.update('CORRFILE', 'none', 'Correlation FITS file')
     tbhdu.header.update('RESPFILE', 'none', 'Redistribution matrix file (RMF)')
     tbhdu.header.update('ANCRFILE', 'none', 'Ancillary response file (ARF)')
 
@@ -488,12 +491,15 @@ def np_to_pha(dat, dat_err, chan, exposure, dstart, dstop, dbase=None, quality=N
     tbhdu.header.update('HDUCLAS1', 'SPECTRUM', 'Extension contains a spectrum')
     tbhdu.header.update('HDUVERS ', '1.2.1', 'Version number of the format')
 
-    tbhdu.header.update('POISSERR', False, 'Are Poisson Distribution errors assumed')
+    poisserr = False
+    if stat_err is None :
+        poisserr = True
+    tbhdu.header.update('POISSERR', poisserr, 'Are Poisson Distribution errors assumed')
 
     tbhdu.header.update('CHANTYPE', 'PHA', 'Channels assigned by detector electronics')
-    tbhdu.header.update('DETCHANS', len(chan), 'Total number of detector channels available')
-    tbhdu.header.update('TLMIN1  ', chan[0], 'Lowest Legal channel number')
-    tbhdu.header.update('TLMAX1  ', chan[-1], 'Highest Legal channel number')
+    tbhdu.header.update('DETCHANS', len(channel), 'Total number of detector channels available')
+    tbhdu.header.update('TLMIN1  ', channel[0], 'Lowest Legal channel number')
+    tbhdu.header.update('TLMAX1  ', channel[-1], 'Highest Legal channel number')
 
     tbhdu.header.update('XFLT0001', 'none', 'XSPEC selection filter description')
     tbhdu.header.update('OBJECT  ', obj_name, 'OBJECT from the FIRST input file')
@@ -508,16 +514,19 @@ def np_to_pha(dat, dat_err, chan, exposure, dstart, dstop, dbase=None, quality=N
 
     tbhdu.header.update('CREATOR ', '{0} {1}'.format(creator, version), 'Program name that produced this file')
 
-    tbhdu.header.update('HDUCLAS2', 'NET', 'Extension contains a background substracted spectrum')
+    tbhdu.header.update('HDUCLAS2', 'NET', 'Extension contains a bkgr substr. spec.')
     tbhdu.header.update('HDUCLAS3', 'COUNT', 'Extension contains counts')
     tbhdu.header.update('HDUCLAS4', 'TYPE:I', 'Single PHA file contained')
     tbhdu.header.update('HDUVERS1', '1.2.1', 'Obsolete - included for backwards compatibility')
 
     if syserr is None :
         tbhdu.header.update('SYS_ERR ', 0, 'No systematic error was specified')
+
     tbhdu.header.update('GROUPING', 0, 'No grouping data has been specified')
+
     if quality is None :
         tbhdu.header.update('QUALITY ', 0, 'No data quality information specified')
+
     tbhdu.header.update('AREASCAL', 1., 'Nominal effective area')
     tbhdu.header.update('BACKSCAL', 1., 'Background scale factor')
     tbhdu.header.update('CORRSCAL', 0., 'Correlation scale factor')

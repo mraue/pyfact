@@ -88,7 +88,7 @@ telescope = f[1].header['TELESCOP']
 #for i in range(nbins) :
 #    rm[i][i] = 1.
 
-sigma = .1
+sigma = .2
 
 logerange = np.log10(ea_erange)
 logemingrid = logerange[:-1] * np.ones([nbins, nbins])

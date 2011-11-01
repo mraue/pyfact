@@ -58,7 +58,7 @@ def create_spectrum(input_file_names,
                     analysis_radius=.125,
                     match_rmf=None,
                     datadir='',
-                    output_filename_base=None,
+                    write_output_files=False,
                     do_graphical_output=True,
                     loglevel='INFO') :
     # Time it!
@@ -83,6 +83,7 @@ def create_spectrum(input_file_names,
 
     # Exclusion radius [this should be generalized in future versions]
     rexdeg = .3
+    logging.warning('pfspec is currently using a single exclusion region for background extraction set on the analysis position (r = {0}'.format(rexdeg))
 
     # Intialize some variables
     objra, objdec, pntra, pntdec = None, None, None, None
@@ -94,6 +95,9 @@ def create_spectrum(input_file_names,
 
     logging.info('Analysis radius: {0} deg'.format(analysis_radius))
 
+    if write_output_files :
+        logging.info('The output files can be found in {0}'.format(os.getcwd()))
+
     theta2_hist_max, theta2_hist_nbins = .5 ** 2., 50
     theta2_on_hist, theta2_off_hist, theta2_offcor_hist = np.zeros(theta2_hist_nbins), np.zeros(theta2_hist_nbins), np.zeros(theta2_hist_nbins)
     non, noff, noffcor = 0., 0., 0.
@@ -102,16 +106,20 @@ def create_spectrum(input_file_names,
 
     spec_nbins, spec_emin, spec_emax = 40, -2., 2.
     telescope, instrument = 'DUMMY', 'DUMMY'
+
+    arf_m, arf_m_erange = None, None
+
     if match_rmf:
         logging.info('Matching total PHA binning to RMF file: {0}'.format(match_rmf))
         f = pyfits.open(match_rmf)
         rm, erange, ebounds, minprob = pf.rmf_to_np(f)
+        f.close()
         spec_nbins = (len(ebounds) - 1)
         spec_emin = np.log10(ebounds[0])
         spec_emax = np.log10(ebounds[-1])
+        arf_m_erange = erange
         instrument = f[1].header['INSTRUME']
         telescope = f[1].header['TELESCOP']
-        f.close()
         
     spec_on_hist, spec_off_hist, spec_off_cor_hist = np.zeros(spec_nbins), np.zeros(spec_nbins), np.zeros(spec_nbins)
     spec_hist_ebounds = np.linspace(spec_emin, spec_emax, spec_nbins + 1)
@@ -125,8 +133,6 @@ def create_spectrum(input_file_names,
 
     # This list will hold the individual file names as strings
     file_list = None
-    arf_m, arf_m_erange = None, None
-    useARF = True
 
     # Check if we are dealing with a single file or a bankfile
     # and create/read in the file list accordingly
@@ -261,15 +267,22 @@ def create_spectrum(input_file_names,
                                            - cci_f(obj_cam_dist + analysis_radius, rexdeg, obj_cam_dist) / np.pi
                                            + cci_f(obj_cam_dist - analysis_radius, rexdeg, obj_cam_dist) / np.pi)
 
-        logging.debug('{0} {1} {2} {3}'.format((obj_cam_dist + analysis_radius) ** 2.,
-                                               (obj_cam_dist - analysis_radius) ** 2.,
-                                               cci_f(obj_cam_dist + analysis_radius, rexdeg, obj_cam_dist) / np.pi,
-                                               cci_f(obj_cam_dist - analysis_radius, rexdeg, obj_cam_dist) / np.pi
-                                               )
-                      )
-        spec_off_run_hist = np.histogram(np.log10(off_run.field('ENERGY')), bins=spec_nbins, range=(spec_emin, spec_emax))[0]
+        #logging.debug('{0} {1} {2} {3}'.format((obj_cam_dist + analysis_radius) ** 2.,
+        #                                       (obj_cam_dist - analysis_radius) ** 2.,
+        #                                       cci_f(obj_cam_dist + analysis_radius, rexdeg, obj_cam_dist) / np.pi,
+        #                                       cci_f(obj_cam_dist - analysis_radius, rexdeg, obj_cam_dist) / np.pi
+        #                                       )
+        #              )
+
+        spec_off_run_hist, ebins = np.histogram(np.log10(off_run.field('ENERGY')), bins=spec_nbins, range=(spec_emin, spec_emax))
         spec_off_hist += spec_off_run_hist
-        spec_off_cor_hist += spec_off_hist * alpha_run
+        spec_off_cor_hist += spec_off_run_hist * alpha_run
+
+        # DEBUG plot
+        #plt.plot(ebins[:-1], spec_on_hist, label='ON')
+        #plt.plot(ebins[:-1], spec_off_cor_hist, label='OFF cor.')
+        #plt.legend()
+        #plt.show()
         
         def print_stats(non, noff, alpha, pre='') :
             logging.info(pre + 'N_ON = {0}, N_OFF = {1}, ALPHA = {2:.4f}'.format(non, noff, alpha))
@@ -308,51 +321,87 @@ def create_spectrum(input_file_names,
         #logging.debug('theta2_off_hist_alpha = {0}'.format( theta2_off_hist_alpha))
         theta2_offcor_hist += theta2_off_run_hist * theta2_off_hist_alpha
 
-        # Average ARF files
-        if useARF :
-            logging.info('RUN Reading ARF from : {0}'.format(arf))
-            f = pyfits.open(arf)
-            ea, ea_erange = pf.arf_to_np(f[1])
-            f.close()
-            if firstloop:
-                arf_m = ea * exposure_run
-                arf_m_erange = ea_erange
-            else :
-                if np.sum(np.fabs(ea_erange - arf_m_erange)) < 1E-5 :
-                    arf_m += ea * exposure_run
-                else :
-                    logging.error('Different ARF binning for file: {0}'.format(arf_list[i]))
-                    logging.error('Deactiving average ARF calculation')
-                    useARF = False
+        # Read run ARF file
+        logging.info('RUN Reading ARF from : {0}'.format(arf))
+        f = pyfits.open(arf)
+        ea, ea_erange = pf.arf_to_np(f[1])
+        f.close()
+
+        # If average ARF is not matched to RMF use first ARF as template
+        if firstloop and arf_m_erange is None :
+            arf_m_erange = ea_erange
+
+        if (len(ea_erange) is not len(arf_m_erange)) or (np.sum(np.fabs(ea_erange - arf_m_erange)) > 1E-5) :
+            logging.info('ARF binning does not match RMF for file: {0}'.format(arf))
+            logging.info('Resampling ARF to match RMF EBOUNDS binning')
+            ea_spl = scipy.interpolate.UnivariateSpline(np.log10(ea_erange[:-1]*ea_erange[1:]) / 2. , np.log10(ea), s=0, k=1)
+            ea = 10. ** ea_spl((np.log10(arf_m_erange[:-1]*arf_m_erange[1:]) / 2.))
+        if firstloop :
+            arf_m = ea * exposure_run
+        else :
+            arf_m += ea * exposure_run
+
+        ## DEBUG plot
+        #plt.errorbar(spec_hist_ebounds[:-1], dat, yerr=dat_err)
+        #plt.title(dataf)
+        #plt.show()
+
+        # Write run wise data to PHA
+        if write_output_files :
+
+            # Create base file name for run wise output files
+            run_out_basename = os.path.basename(dataf[:dataf.find('.fits')])
 
             # Open run RMF file
             f = pyfits.open(rmf)
+            # Read RM
             rm, erange, ebounds, minprob = pf.rmf_to_np(f)
+            f.close()
 
             # Bin data to match EBOUNDS from RMF
             spec_on_run_hist = np.histogram(on_run.field('ENERGY'), bins=ebounds)[0]
             spec_off_run_hist = np.histogram(off_run.field('ENERGY'), bins=ebounds)[0]
 
-            # Prepare data
+            # Prepare excess data
             dat = spec_on_run_hist - alpha_run * spec_off_run_hist # ON - alpha x OFF = Excess
             dat_err = np.sqrt(spec_on_run_hist + spec_off_run_hist * alpha_run ** 2.)
             quality = np.where(((spec_on_run_hist == 0) | (spec_off_run_hist == 0)), 1, 0) # Set quality flags
             chan = np.arange(len(dat))
 
-            # DEBUG plot
-            #plt.errorbar(spec_hist_ebounds[:-1], dat, yerr=dat_err)
-            #plt.show()
-        
-            # Data to PHA
-            tbhdu = pf.np_to_pha(dat=dat, dat_err=dat_err, chan=chan, exposure=exposure_run, quality=quality,
+            # Signal PHA
+            tbhdu = pf.np_to_pha(channel=chan, counts=np.array(spec_on_run_hist, dtype=float),
+                                 quality=np.where((spec_on_run_hist == 0), 1, 0),
+                                 exposure=exposure_run, obj_ra=objra, obj_dec=objdec,
+                                 dstart=run_dstart, dstop=run_dstop, creator='pfspec', version=pf.__version__,
+                                 telescope=telescope, instrument=instrument)
+            tbhdu.header.update('ANCRFILE', os.path.basename(arf), 'Ancillary response file (ARF)')
+            tbhdu.header.update('RESPFILE', os.path.basename(rmf), 'Redistribution matrix file (RMF)')
+            tbhdu.header.update('BACKFILE', run_out_basename + '_bg.pha.fits', 'Bkgr FITS file')
+            tbhdu.header.update('BACKSCAL', alpha_run, 'Background scale factor')            
+            tbhdu.header.update('HDUCLAS2', 'TOTAL', 'Extension contains source + bkgd')
+            logging.info('RUN Writing signal PHA file to {0}'.format(run_out_basename + '_signal.pha.fits'))
+            tbhdu.writeto(run_out_basename + '_signal.pha.fits')
+
+            # Background PHA
+            tbhdu = pf.np_to_pha(channel=chan, counts=np.array(spec_off_run_hist, dtype=float),
+                                 exposure=exposure_run, obj_ra=objra, obj_dec=objdec,
+                                 dstart=run_dstart, dstop=run_dstop, creator='pfspec', version=pf.__version__,
+                                 telescope=telescope, instrument=instrument)
+            tbhdu.header.update('ANCRFILE', os.path.basename(arf), 'Ancillary response file (ARF)')
+            tbhdu.header.update('RESPFILE', os.path.basename(rmf), 'Redistribution matrix file (RMF)')
+            tbhdu.header.update('HDUCLAS2', 'TOTAL', 'Extension contains source + bkgd')
+            logging.info('RUN Writing background PHA file to {0}'.format(run_out_basename + '_bg.pha.fits'))
+            tbhdu.writeto(run_out_basename + '_bg.pha.fits')
+            
+            # Excess PHA
+            tbhdu = pf.np_to_pha(channel=chan, counts=dat, stat_err=dat_err, exposure=exposure_run, quality=quality,
                                  obj_ra=objra, obj_dec=objdec,
                                  dstart=run_dstart, dstop=run_dstop, creator='pfspec', version=pf.__version__,
                                  telescope=telescope, instrument=instrument)
-            # Write PHA to file
             tbhdu.header.update('ANCRFILE', os.path.basename(arf), 'Ancillary response file (ARF)')
             tbhdu.header.update('RESPFILE', os.path.basename(rmf), 'Redistribution matrix file (RMF)')
-            tbhdu.writeto(os.path.basename(dataf[:dataf.find('.fits')]) + '.pha.fits')
-
+            logging.info('RUN Writing excess PHA file to {0}'.format(run_out_basename + '_excess.pha.fits'))
+            tbhdu.writeto(run_out_basename + '_excess.pha.fits')
 
         hdulist.close()
 
@@ -363,34 +412,30 @@ def create_spectrum(input_file_names,
 
     arf_m /= exposure
 
-    if output_filename_base :
-        logging.info('Writing result to file ..')
-        out_dir = os.path.realpath(os.path.dirname(output_filename_base))
-        logging.info('The output files can be found in {0}'.format(out_dir))
-
+    if write_output_files :
         # Prepare data
         dat = spec_on_hist - spec_off_cor_hist # ON - alpha x OFF = Excess
         dat_err = np.sqrt(spec_on_hist + spec_off_hist* (spec_off_cor_hist / spec_off_hist) ** 2.)
         quality = np.where(((spec_on_hist == 0) | (spec_off_hist == 0)), 1, 0) # Set quality flags
         chan = np.arange(len(dat))
 
-        # DEBUG plot
-        plt.errorbar(spec_hist_ebounds[:-1], dat, yerr=dat_err)
-        plt.show()
+        ## DEBUG plot
+        #plt.errorbar(spec_hist_ebounds[:-1], dat, yerr=dat_err)
+        #plt.title('Total')
+        #plt.show()
         
         # Data to PHA
-        tbhdu = pf.np_to_pha(dat=dat, dat_err=dat_err, chan=chan, exposure=exposure, quality=quality,
+        tbhdu = pf.np_to_pha(channel=chan, counts=dat, stat_err=dat_err, exposure=exposure, quality=quality,
                              obj_ra=objra, obj_dec=objdec,
                              dstart=dstart, dstop=dstop, creator='pfspec', version=pf.__version__,
                              telescope=telescope, instrument=instrument)
         # Write PHA to file
-        tbhdu.header.update('ANCRFILE', os.path.basename(output_filename_base + '.arf.fits'), 'Ancillary response file (ARF)')
-        tbhdu.writeto(output_filename_base + '.pha.fits')
+        tbhdu.header.update('ANCRFILE', os.path.basename('average.arf.fits'), 'Ancillary response file (ARF)')
+        tbhdu.writeto('average.pha.fits')
 
         # Write ARF
-        if useARF :
-            tbhdu = pf.np_to_arf(arf_m, arf_m_erange, telescope=telescope, instrument=instrument)
-            tbhdu.writeto(output_filename_base + '.arf.fits')
+        tbhdu = pf.np_to_arf(arf_m, arf_m_erange, telescope=telescope, instrument=instrument)
+        tbhdu.writeto('average.arf.fits')
 
     #---------------------------------------------------------------------------
     # Plot results
@@ -468,7 +513,7 @@ if __name__ == '__main__':
         help='Aperture for the analysis in degree [default: %default].'
     )
     parser.add_option(
-        '-m','--match-pha-to-rmf',
+        '-m','--match-average-pha-to-rmf',
         dest='match_rmf',
         type='string',
         default=None,
@@ -482,11 +527,11 @@ if __name__ == '__main__':
         help='Directory in which the data is located. Will be added as prefix to the entries in the bankfile [default: %default].'
     )
     parser.add_option(
-        '-o','--output-filename-base',
-        dest='output_filename_base',
-        type='string',
-        default=None,
-        help='Output filename base. If set, output files will be written [default: %default].'
+        '-w','--write-output-files',
+        dest='write_output_files',
+        action='store_true',
+        default=False,
+        help='Write output files [default: %default].'
     )
     parser.add_option(
         '--no-graphical-output',
@@ -511,7 +556,7 @@ if __name__ == '__main__':
             analysis_radius=options.analysis_radius,
             match_rmf=options.match_rmf,
             datadir=options.datadir,
-            output_filename_base=options.output_filename_base,
+            write_output_files=options.write_output_files,
             do_graphical_output=options.graphical_output,
             loglevel=options.loglevel
             )
