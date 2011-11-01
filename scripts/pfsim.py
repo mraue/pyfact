@@ -39,6 +39,7 @@ import datetime
 
 import numpy as np
 import pyfits
+import scipy
 import scipy.interpolate
 import scipy.optimize
 import scipy.integrate
@@ -82,9 +83,9 @@ def sim_evlist(flux=.1,
                         datefmt='%Y-%m-%d %H:%M:%S')
 
     # Welcome user, print out basic information on package versions
-    logging.info('This is {0}'.format(os.path.split(__file__)[1]))
-    logging.info('We are running pyfact v{0}, numpy v{1}, and pyfits v{2}'.format(
-        pf.__version__, np.__version__, pyfits.__version__
+    logging.info('This is {0} (pyfact v{1})'.format(os.path.split(__file__)[1], pf.__version__))
+    logging.info('We are running with numpy v{0}, scipy v{1}, and pyfits v{2}'.format(
+        np.__version__, scipy.__version__, pyfits.__version__
         ))
 
     #---------------------------------------------------------------------------

@@ -38,6 +38,7 @@ import datetime
 
 import numpy as np
 import pyfits
+import scipy
 import scipy.interpolate
 # Check if we have matplotlib for graphical output
 has_matplotlib = True
@@ -73,9 +74,9 @@ def create_spectrum(input_file_names,
                         datefmt='%Y-%m-%d %H:%M:%S')
 
     # Welcome user, print out basic information on package versions
-    logging.info('This is {0}'.format(os.path.split(__file__)[1]))
-    logging.info('We are running pyfact v{0}, numpy v{1}, and pyfits v{2}'.format(
-        pf.__version__, np.__version__, pyfits.__version__
+    logging.info('This is {0} (pyfact v{1})'.format(os.path.split(__file__)[1], pf.__version__))
+    logging.info('We are running with numpy v{0}, scipy v{1}, and pyfits v{2}'.format(
+        np.__version__, scipy.__version__, pyfits.__version__
         ))
 
     #---------------------------------------------------------------------------
@@ -83,7 +84,8 @@ def create_spectrum(input_file_names,
 
     # Exclusion radius [this should be generalized in future versions]
     rexdeg = .3
-    logging.warning('pfspec is currently using a single exclusion region for background extraction set on the analysis position (r = {0}'.format(rexdeg))
+    logging.warning('pfspec is currently using a single exclusion region for background extraction set on the analysis position (r = {0})'.format(rexdeg))
+    logging.warning('This should be improved in future versions (tm).')
 
     # Intialize some variables
     objra, objdec, pntra, pntdec = None, None, None, None
@@ -150,7 +152,7 @@ def create_spectrum(input_file_names,
     for files in file_list :
         
         dataf, arf, rmf = datadir + files[0], datadir + files[1], datadir + files[2]
-        logging.info('Processing file {0}'.format(dataf))
+        logging.info('==== Processing file {0}'.format(dataf))
 
         # Open fits file
         hdulist = pyfits.open(dataf)
@@ -332,8 +334,8 @@ def create_spectrum(input_file_names,
             arf_m_erange = ea_erange
 
         if (len(ea_erange) is not len(arf_m_erange)) or (np.sum(np.fabs(ea_erange - arf_m_erange)) > 1E-5) :
-            logging.info('ARF binning does not match RMF for file: {0}'.format(arf))
-            logging.info('Resampling ARF to match RMF EBOUNDS binning')
+            logging.debug('Average ARF - ARF binning does not match RMF for file: {0}'.format(arf))
+            logging.debug('Average ARF - Resampling ARF to match RMF EBOUNDS binning')
             ea_spl = scipy.interpolate.UnivariateSpline(np.log10(ea_erange[:-1]*ea_erange[1:]) / 2. , np.log10(ea), s=0, k=1)
             ea = 10. ** ea_spl((np.log10(arf_m_erange[:-1]*arf_m_erange[1:]) / 2.))
         if firstloop :
@@ -353,6 +355,7 @@ def create_spectrum(input_file_names,
             run_out_basename = os.path.basename(dataf[:dataf.find('.fits')])
 
             # Open run RMF file
+            logging.info('RUN Reading RMF from : {0}'.format(rmf))
             f = pyfits.open(rmf)
             # Read RM
             rm, erange, ebounds, minprob = pf.rmf_to_np(f)
@@ -475,7 +478,9 @@ def create_spectrum(input_file_names,
         dat = spec_on_hist - spec_off_cor_hist
         dat_err = np.sqrt(spec_on_hist + spec_off_hist* (spec_off_cor_hist / spec_off_hist) ** 2.)
         plt.errorbar(ecen, dat, yerr=dat_err, fmt='s', label='ON - OFF cor.')
-        plt.legend()
+        plt.xlabel(r'log(E/1 TeV)')
+        plt.ylabel(r'N')
+        plt.legend(numpoints=1)
         ax.set_yscale('log')
 
     #----------------------------------------
