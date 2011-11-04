@@ -100,12 +100,6 @@ def sim_evlist(flux=.1,
 
     objcosdec = np.cos(obj_dec * np.pi / 180.)
 
-    input_file_name = '/Users/mraue/Stuff/work/cta/2011/fits/irf/cta/SubarrayE_IFAE_50hours_20101102.log'
-    #input_file_name = '/Users/mraue/Stuff/work/cta/2011/fits/irf/cta/SubarrayB_IFAE_50hours_20101102.log'
-
-    # open effective area file
-    irf_data = np.loadtxt(input_file_name)
-
     #---------------------------------------------------------------------------
     # Read ARF, RMF, and extra file
 
@@ -244,62 +238,6 @@ def sim_evlist(flux=.1,
     # Generate energy event list
     evlist_e = ev_gen_f(np.random.rand(n_events))
     
-    """
-    # OLD OLD
-    log_e_cen = (irf_data[:,0] + irf_data[:,1]) / 2.
-
-    func_pl = lambda x, p: p[0] * x ** (-p[1])
-
-    e_bin_w = 10. ** irf_data[:,1] - 10. ** irf_data[:,0]
-    pho_rate = func_pl(10. ** log_e_cen, (1E-11, 3.)) * irf_data[:,7] * 1E4 * e_bin_w
-
-    plt.loglog(10. ** log_e_cen, irf_data[:,7], '+')
-    plt.show()
-
-    func_dbpl = lambda p, x: p[0] * x ** (-p[1]) * (1. + (x/p[2]) ** 2.) ** ((p[1] - p[3]) / 2.) * (1. + (x/p[4]) ** 1.) ** ((p[3] - p[5]) / 1.)
-    #p0 = [1E10, -5., .1, 10., -1., 1., 10., -.5]
-    p0 = [1E13, -6., .05,-.5, 1E3, 10.]
-
-    fitter = pf.ChisquareFitter(func_dbpl)
-    #fitter.fit_data(p0, 10. ** log_e_cen, irf_data[:,7], irf_data[:,7] * .12)
-    fitter.fit_data(p0, 10. ** log_e_cen, irf_data[:,7] / irf_data[:,4], irf_data[:,7]  / irf_data[:,4] * .1) # correct for leakage?
-    fitter.print_results()
-
-    f_test = lambda x : func_pl(x, (3.45E-11 * flux, 2.63)) * func_dbpl(fitter.results[0], x) * 1E4
-
-    #print pho_rate * obstime
-    #print 'x1 : ', scipy.integrate.quad(f_test, 0.01, 100.)
-    #print 'x2 : ', np.sum(pho_rate)
-
-    log_e_steps = np.linspace(-2., 2., 150)
-    int_rate = np.zeros(150)
-    for i, e in enumerate(log_e_steps) :
-        int_rate[i] = scipy.integrate.quad(f_test, 0.01, 10. ** e)[0]
-
-    ev_gen_f = scipy.interpolate.UnivariateSpline(
-        int_rate / scipy.integrate.quad(f_test, 0.01, 100.)[0],
-        log_e_steps,
-        s=0,
-        k=1
-        )
-
-    n_events =  scipy.integrate.quad(f_test, 0.01, 100.)[0] * obstime
-
-    #DEBUG plot
-    plt.semilogy(np.linspace(-2.,2.,100), f_test(10. ** np.linspace(-2.,2.,100)))
-    plt.show()
-
-    logging.debug('Number of photons : {0}'.format(n_events))
-
-    # DEBUG plot
-    plt.hist(evlist_e, range=[-2.,2.], bins=40, histtype='step', label='arf')
-
-    evlist_e = ev_gen_f(np.random.rand(n_events))
-    #OLD ENDS
-    plt.hist(evlist_e, range=[-2.,2.], bins=40, histtype='step', label='txt')
-    plt.legend()
-    plt.show()
-    """
     
     # Sanity
     D('Number of photons with E = NaN : {0}', np.sum(np.isnan(evlist_e)))
@@ -325,10 +263,6 @@ def sim_evlist(flux=.1,
         psf_p1 = [1.1, 5.5E-2, .42, .19] # Fit from SubarrayE_IFAE_50hours_20101102
         evlist_psf = bpl(psf_p1, 10. ** evlist_e)
         logging.warning('Using dummy PSF extracted from SubarrayE_IFAE_50hours_20101102')
-
-    # OLD OLD OLD
-    #evlist_psf = np.where(evlist_e > 1., .05, 5.6E-2 * np.exp(-.9 * evlist_e))
-    #evlist_psf = np.where(evlist_e > 1., .05, 3.3E-2 * np.exp(-1.4 * evlist_e))    
     
     evlist_dec = obj_dec + np.random.randn(n_events) * evlist_psf
     evlist_ra =  obj_ra + np.random.randn(n_events) * evlist_psf / objcosdec
@@ -356,12 +290,6 @@ def sim_evlist(flux=.1,
     # DEBUG plot
     #plt.semilogy(log_e_cen, p_rate_area)
     #plt.show()
-
-    #log_e_cen = (irf_data[:,0] + irf_data[:,1]) / 2.
-    # Protons + electron
-    #p_rate_area = (irf_data[:,10] + irf_data[:,11]) / irf_data[:,5] / np.pi
-
-    #logging.debug('Total proton rate = {0}'.format(np.sum(irf_data[:,10])))
 
     p_rate_total = np.sum(p_rate_area)
 
