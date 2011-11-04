@@ -88,7 +88,7 @@ telescope = f[1].header['TELESCOP']
 #for i in range(nbins) :
 #    rm[i][i] = 1.
 
-sigma = .2
+sigma = .1
 
 logerange = np.log10(ea_erange)
 logemingrid = logerange[:-1] * np.ones([nbins, nbins])
@@ -98,7 +98,7 @@ logecentergrid = np.transpose(((logerange[:-1] + logerange[1:]) / 2.) * np.ones(
 #gauss = lambda p, x: p[0] / np.sqrt(2. * np.pi * p[2] ** 2.) * np.exp(- (x - p[1]) ** 2. / 2. / p[2] ** 2.)
 gauss_int = lambda p, x_min, x_max: .5 * (scipy.special.erf((x_max - p[1]) / np.sqrt(2. * p[2] ** 2.)) - scipy.special.erf((x_min - p[1]) / np.sqrt(2. * p[2] ** 2.)))
 
-rm = gauss_int([1., 10. ** logecentergrid, sigma], 10. ** logemingrid, 10. ** logemaxgrid)
+rm = gauss_int([1., 10. ** logecentergrid, sigma * 10. ** logecentergrid], 10. ** logemingrid, 10. ** logemaxgrid)
 
 logging.info('Sanity check, integrated rows should be 1.: {0}'.format(np.sum(rm, axis=1)))
 

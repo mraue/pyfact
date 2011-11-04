@@ -67,6 +67,7 @@ def sim_evlist(flux=.1,
                obstime=.5,
                arf=None,
                rmf=None,
+               extra=None,
                output_filename_base=None,
                write_pha=False,
                do_graphical_output=True,
@@ -89,6 +90,8 @@ def sim_evlist(flux=.1,
         ))
 
     #---------------------------------------------------------------------------
+
+    logging.info('Exposure: {0} h'.format(obstime))
     obstime *= 3600. #observation time in seconds
     
     obj_ra, obj_dec = 0., .5
@@ -104,7 +107,7 @@ def sim_evlist(flux=.1,
     irf_data = np.loadtxt(input_file_name)
 
     #---------------------------------------------------------------------------
-    # Read ARF & RMF
+    # Read ARF, RMF, and extra file
 
     logging.info('ARF: {0}'.format(arf))
     ea, ea_erange = pf.arf_to_np(pyfits.open(arf)[1])
@@ -117,6 +120,16 @@ def sim_evlist(flux=.1,
         logging.info('RMF: {0}'.format(rmf))
         rm, rm_erange, rm_ebounds, rm_minprob = pf.rmf_to_np(pyfits.open(rmf))
 
+    if extra :
+        logging.info('Extra file: {0}'.format(extra))
+        extraf = pyfits.open(extra)
+        logging.info('Using effective area with 80% containment from extra file')
+        ea = extraf['EA80'].data.field('VAL') / .8 # 100% effective area
+        ea_erange = 10. ** np.hstack([extraf['EA80'].data.field('BIN_LO'), extraf['EA80'].data.field('BIN_HI')[-1]])
+    else :
+        logging.info('Assuming energy dependent 90% cut efficiency')
+        ea /= .9
+        
     #---------------------------------------------------------------------------
     # Signal
 
@@ -159,15 +172,14 @@ def sim_evlist(flux=.1,
     # Sanity
     int_rate[int_rate < 0.] = 0.
 
-    D('Photon rate before RM = {0}', np.sum(int_rate))
     # DEBUG
-    int_rate_s = int_rate
+    #int_rate_s = int_rate
 
     if rmf :
+        D('Photon rate before RM = {0}', np.sum(int_rate))
         # Apply energy distribution matrix
         int_rate = np.dot(int_rate, rm)
-
-    D('Photon rate after RM = {0}', np.sum(int_rate))
+        D('Photon rate after RM = {0}', np.sum(int_rate))
 
     # DEBUG plots
     #plt.figure(1)
@@ -290,8 +302,8 @@ def sim_evlist(flux=.1,
     """
     
     # Sanity
-    evlist_e[np.isnan(evlist_e)] = 0.
     D('Number of photons with E = NaN : {0}', np.sum(np.isnan(evlist_e)))
+    evlist_e[np.isnan(evlist_e)] = 0.
 
     ## DEBUG plot
     #plt.figure(1)
@@ -299,9 +311,25 @@ def sim_evlist(flux=.1,
     ##plt.show()
     #sys.exit(0)
 
+    #------------------------------------------------------
     # Apply PSF
-    evlist_psf = np.where(evlist_e > 1., .05, 5.6E-2 * np.exp(-.9 * evlist_e))
-    #evlist_psf = np.where(evlist_e > 1., .05, 3.3E-2 * np.exp(-1.4 * evlist_e))
+
+    # Broken power law fit function, normalized at break energy
+    bpl = lambda p,x : np.where(x < p[0], p[1] * (x / p[0]) ** -p[2],  p[1] * (x / p[0]) ** -p[3])
+    evlist_psf = None
+    if extra :
+        d = extraf['ANGRES68'].data
+        g = scipy.interpolate.UnivariateSpline((d.field('BIN_LO') + d.field('BIN_HI')) / 2., d.field('VAL'), s=0, k=1)
+        evlist_psf = g(evlist_e)
+    else :
+        psf_p1 = [1.1, 5.5E-2, .42, .19] # Fit from SubarrayE_IFAE_50hours_20101102
+        evlist_psf = bpl(psf_p1, 10. ** evlist_e)
+        logging.warning('Using dummy PSF extracted from SubarrayE_IFAE_50hours_20101102')
+
+    # OLD OLD OLD
+    #evlist_psf = np.where(evlist_e > 1., .05, 5.6E-2 * np.exp(-.9 * evlist_e))
+    #evlist_psf = np.where(evlist_e > 1., .05, 3.3E-2 * np.exp(-1.4 * evlist_e))    
+    
     evlist_dec = obj_dec + np.random.randn(n_events) * evlist_psf
     evlist_ra =  obj_ra + np.random.randn(n_events) * evlist_psf / objcosdec
 
@@ -312,13 +340,30 @@ def sim_evlist(flux=.1,
 
     #plt.figure(1)
 
-    log_e_cen = (irf_data[:,0] + irf_data[:,1]) / 2.
+    p_rate_area, log_e_cen = None, None
+    if extra :
+        d = extraf['BGRATED'].data
+        p_rate_area = d.field('VAL')
+        log_e_cen = (d.field('BIN_LO') + d.field('BIN_HI')) / 2
+        #g = scipy.interpolate.UnivariateSpline((d.field('BIN_LO') + d.field('BIN_HI')) / 2., d.field('VAL'), s=0, k=1)
+    else :        
+        logging.warning('Using dummy background rate extracted from SubarrayE_IFAE_50hours_20101102')
+        bgrate_p1 = [9., 5.E-4, 1.44, .49] # Fit from SubarrayE_IFAE_50hours_20101102
+        log_e_cen = np.linspace(-1.5, 2., 35.)
+        p_rate_area = bpl(bgrate_p1, 10. ** log_e_cen)
+        p_rate_area[log_e_cen < -1.] = .6
+
+    # DEBUG plot
+    #plt.semilogy(log_e_cen, p_rate_area)
+    #plt.show()
+
+    #log_e_cen = (irf_data[:,0] + irf_data[:,1]) / 2.
     # Protons + electron
-    p_rate_area = (irf_data[:,10] + irf_data[:,11]) / irf_data[:,5] / np.pi
+    #p_rate_area = (irf_data[:,10] + irf_data[:,11]) / irf_data[:,5] / np.pi
 
-    logging.debug('Total proton rate = {0}'.format(np.sum(irf_data[:,10])))
+    #logging.debug('Total proton rate = {0}'.format(np.sum(irf_data[:,10])))
 
-    p_rate_total =  np.sum(p_rate_area)
+    p_rate_total = np.sum(p_rate_area)
 
     ev_gen_f = scipy.interpolate.UnivariateSpline(
         np.cumsum(p_rate_area) / np.sum(p_rate_area),
@@ -419,7 +464,9 @@ def sim_evlist(flux=.1,
                 pyfits.Column(name='DETX', format='1E', unit='deg', array=np.append(np.zeros(n_events), evlist_bg_rx)),
                 pyfits.Column(name='DETY', format='1E', unit='deg', array=np.append(np.ones(n_events) * .5, evlist_bg_ry)),
                 pyfits.Column(name='ENERGY', format='1E', unit='tev', array=10. ** np.append(evlist_e,evlist_bg_e)),
-                pyfits.Column(name='HIL_MSW', format='1E', array=np.append(np.ones(n_events + n_events_bg),
+                pyfits.Column(name='HIL_MSW', format='1E', array=np.append(np.zeros(n_events + n_events_bg),
+                                                                           5. * np.ones(n_events_bg * tplt_multi))),
+                pyfits.Column(name='HIL_MSL', format='1E', array=np.append(np.zeros(n_events + n_events_bg),
                                                                            5. * np.ones(n_events_bg * tplt_multi))) 
                 ])
             )
@@ -471,9 +518,14 @@ def sim_evlist(flux=.1,
             dat_err = np.sqrt(dat)
             chan = np.arange(len(dat))
             # Data to PHA
-            tbhdu = pf.np_to_pha(dat=dat, dat_err=dat_err, chan=chan, exposure=obstime, obj_ra=obj_ra, obj_dec=obj_dec,
+            tbhdu = pf.np_to_pha(counts=dat, stat_err=dat_err, channel=chan, exposure=obstime, obj_ra=obj_ra, obj_dec=obj_dec,
+                                 quality=np.where((dat == 0), 1, 0),
                                  dstart=dstart, dstop=dstop, dbase=dbase, creator='pfsim', version=pf.__version__,
                                  telescope='CTASIM')
+            tbhdu.header.update('ANCRFILE', os.path.basename(arf), 'Ancillary response file (ARF)')
+            if rmf :
+                tbhdu.header.update('RESPFILE', os.path.basename(rmf), 'Redistribution matrix file (RMF)')
+
             # Write PHA to file
             tbhdu.writeto('{0}.pha.fits'.format(output_filename_base))
 
@@ -495,8 +547,8 @@ if __name__ == '__main__':
     # http://docs.python.org/library/argparse.html#module-argparse
     import optparse
     parser = optparse.OptionParser(
-        usage='%prog [options]',
-        description='Creates IACT eventlist from IRFs.'
+        usage='%prog <arf_file_name> [options]',
+        description='Simulates IACT eventlist using an ARF file.'
     )
     parser.add_option(
         '-t','--exposure-time',
@@ -513,18 +565,18 @@ if __name__ == '__main__':
         help='Flux in units of Crab [default: %default].'
     )
     parser.add_option(
-        '-a','--arf-file',
-        dest='arf',
-        type='string',
-        default=None,
-        help='Auxiliary response file (ARF), required [default: %default].'
-    )
-    parser.add_option(
         '-r','--rmf-file',
         dest='rmf',
         type='string',
         default=None,
         help='Response matrix file (RMF), optional [default: %default].'
+    )
+    parser.add_option(
+        '-e','--extra-file',
+        dest='extra',
+        type='string',
+        default=None,
+        help='Extra file with auxiliary information e.g. bg-rate, psf, etc. [default: %default].'
     )
     parser.add_option(
         '-o','--output-filename-base',
@@ -556,18 +608,19 @@ if __name__ == '__main__':
 
     options, args = parser.parse_args()
 
-    #if len(args) == 1 :
-    sim_evlist(
-        flux=options.flux,
-        obstime=options.exposure_time,
-        arf=options.arf,
-        rmf=options.rmf,
-        output_filename_base=options.output_filename_base,
-        write_pha=options.write_pha,
-        do_graphical_output=options.graphical_output,
-        loglevel=options.loglevel
-        )
-    #else :
-    #    parser.print_help()
+    if len(args) is 1 :
+        sim_evlist(
+            flux=options.flux,
+            obstime=options.exposure_time,
+            arf=args[0],
+            rmf=options.rmf,
+            extra=options.extra,
+            output_filename_base=options.output_filename_base,
+            write_pha=options.write_pha,
+            do_graphical_output=options.graphical_output,
+            loglevel=options.loglevel
+            )
+    else :
+        parser.print_help()
 
 #===========================================================================
