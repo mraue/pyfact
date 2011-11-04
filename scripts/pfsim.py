@@ -121,8 +121,8 @@ def sim_evlist(flux=.1,
         ea = extraf['EA80'].data.field('VAL') / .8 # 100% effective area
         ea_erange = 10. ** np.hstack([extraf['EA80'].data.field('BIN_LO'), extraf['EA80'].data.field('BIN_HI')[-1]])
     else :
-        logging.info('Assuming energy dependent 90% cut efficiency')
-        ea /= .9
+        logging.info('Assuming energy independent 80% cut efficiency for ARF file')
+        ea /= .80
         
     #---------------------------------------------------------------------------
     # Signal
@@ -285,7 +285,7 @@ def sim_evlist(flux=.1,
         bgrate_p1 = [9., 5.E-4, 1.44, .49] # Fit from SubarrayE_IFAE_50hours_20101102
         log_e_cen = np.linspace(-1.5, 2., 35.)
         p_rate_area = bpl(bgrate_p1, 10. ** log_e_cen)
-        p_rate_area[log_e_cen < -1.] = .6
+        p_rate_area[log_e_cen < -1.] = .4
 
     # DEBUG plot
     #plt.semilogy(log_e_cen, p_rate_area)
