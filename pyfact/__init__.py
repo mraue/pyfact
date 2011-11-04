@@ -48,6 +48,11 @@ fits
     def np_to_arf(ea, erange, telescope='DUMMY', instrument='DUMMY', filter='NONE') :
     def np_to_rmf(rm, erange, ebounds, minprob,
                   telescope='DUMMY', instrument='DUMMY', filter='NONE') :
+    def rmf_to_np(hdulist) :
+    def np_to_pha(channel, counts, exposure, dstart, dstop, dbase=None,
+                  stat_err=None, quality=None, syserr=None,
+                  obj_ra=0., obj_dec=0., obj_name='DUMMY', creator='DUMMY',
+                  version='v0.0.0', telescope='DUMMY', instrument='DUMMY', filter_='NONE') :
 
 map
     class SkyCoord:
@@ -59,7 +64,7 @@ map
     def oversample_sky_map(sky, mask, exmap=None) :
 """
 
-__version__ = '0.0.3dev'
+__version__ = '0.0.3dev2'
 __author__  = 'M. Raue // martin.raue@desy.de'
 
 # Import all functions/classes from the different files

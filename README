@@ -69,8 +69,11 @@ The scripts come with a builtin help text, which is displayed when the scripts a
 ./scripts/pfmap.py -h
 ./scripts/pfmap.py --help
 
-========
-EXAMPLES
+-------
+EXAMPLE
+
+===============
+EXAMPLE SCRIPTS
 
 In the examples/ folder example scripts can be found illustrating how to implement standard tasks e.g. creating RMF and ARF files from numpy arrays.
 
