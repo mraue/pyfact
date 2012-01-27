@@ -121,7 +121,7 @@ def sim_evlist(flux=.1,
         ea = extraf['EA80'].data.field('VAL') / .8 # 100% effective area
         ea_erange = 10. ** np.hstack([extraf['EA80'].data.field('BIN_LO'), extraf['EA80'].data.field('BIN_HI')[-1]])
     else :
-        logging.info('Assuming energy independent 80% cut efficiency for ARF file')
+        logging.info('Assuming energy independent 80% cut efficiency for ARF file.')
         ea /= .80
         
     #---------------------------------------------------------------------------
@@ -288,8 +288,8 @@ def sim_evlist(flux=.1,
         p_rate_area[log_e_cen < -1.] = .4
 
     # DEBUG plot
-    #plt.semilogy(log_e_cen, p_rate_area)
-    #plt.show()
+    plt.semilogy(log_e_cen, p_rate_area)
+    plt.show()
 
     p_rate_total = np.sum(p_rate_area)
 

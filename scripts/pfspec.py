@@ -83,7 +83,7 @@ def create_spectrum(input_file_names,
     # Loop over the file list, calculate quantities, & fill histograms
 
     # Exclusion radius [this should be generalized in future versions]
-    rexdeg = .3
+    rexdeg = .4
     logging.warning('pfspec is currently using a single exclusion region for background extraction set on the analysis position (r = {0})'.format(rexdeg))
     logging.warning('This should be improved in future versions (tm).')
 

@@ -59,6 +59,7 @@ def create_sky_map(input_file_name,
                    skymap_bin_size=0.05,
                    r_overs=.125,
                    ring_bg_radii=None,
+                   apply_cuts=True,
                    template_background=True,
                    skymap_center=None,
                    write_output=False,
@@ -199,13 +200,25 @@ def create_sky_map(input_file_name,
         # Only use events with < 4 deg camera distance
         camdmask = tbdata.field('XCAMDIST') < 4.
 
-        # Combine cuts for photons
-        #phomask = (tbdata.field('HIL_MSW ') < 1.1) * emask * camdmask
-        #  (HIL_MSW>-2.0&&HIL_MSW<0.9)&&(HIL_MSL>-2.0&&HIL_MSL<2.0)
-        phomask = (tbdata.field('HIL_MSW ') > -2.) * (tbdata.field('HIL_MSW ') < .9) * (tbdata.field('HIL_MSL ') > -2.)  * (tbdata.field('HIL_MSL ') < 2.) * emask * camdmask
-        #phomask = (tbdata.field('HIL_MSW ') > -2.)  * (tbdata.field('HIL_MSW ') < .9) * emask * camdmask
-        hadmask = (tbdata.field('HIL_MSW ') > 1.) * (tbdata.field('HIL_MSW ') < 10.) * emask * camdmask
+        phomask = emask * camdmask
+        hadmask = emask * camdmask
 
+        if apply_cuts :
+            # Combine cuts for photons
+            #phomask = (tbdata.field('HIL_MSW ') < 1.1) * emask * camdmask
+            #  (HIL_MSW>-2.0&&HIL_MSW<0.9)&&(HIL_MSL>-2.0&&HIL_MSL<2.0)
+
+
+            if ex1hdr.has_key('TEL') and (ex1hdr['TEL'].strip() == 'MAGIC') :
+                # MAGIC
+                phomask *= (tbdata.field('HADRONNESS') < .85) 
+                hadmask *= (tbdata.field('HADRONNESS') > .85) 
+            else :
+                # HESS
+                phomask = (tbdata.field('HIL_MSW ') > -2.) * (tbdata.field('HIL_MSW ') < .9) * (tbdata.field('HIL_MSL ') > -2.)  * (tbdata.field('HIL_MSL ') < 2.)
+                ##phomask = (tbdata.field('HIL_MSW ') > -2.)  * (tbdata.field('HIL_MSW ') < .9) * emask * camdmask
+                hadmask = (tbdata.field('HIL_MSW ') > 1.) * (tbdata.field('HIL_MSW ') < 10.)
+    
         if firstloop :
             # If skymap center is not set, set it to the target position of the first run
             if objra == None or objdec == None :
@@ -237,7 +250,7 @@ def create_sky_map(input_file_name,
 
         #---------------------------------------------------------------------------
         # Calculate camera acceptance
-
+        
         n, bins, nerr, r, r_a, ex_a, fitter = pf.get_cam_acc(
             photbdata.field('XCAMDIST'),
             exreg=[[rexdeg, obj_cam_dist]],
@@ -249,9 +262,9 @@ def create_sky_map(input_file_name,
         #    fitter.print_results()
 
         # DEBUG plot
-        #plt.errorbar(r, n / r_a / (1. - ex_a), nerr / r_a / (1. - ex_a))
-        #plt.plot(r, fitter.fitfunc(fitter.results[0], r))
-        #plt.show()
+        plt.errorbar(r, n / r_a / (1. - ex_a), nerr / r_a / (1. - ex_a))
+        plt.plot(r, fitter.fitfunc(fitter.results[0], r))
+        plt.show()
 
         had_acc, had_n, had_fit = None, None, None
         if template_background :
@@ -731,6 +744,13 @@ if __name__ == '__main__':
         help='Write results to FITS files in current directory [default: %default]'
     )
     parser.add_option(
+        '--no-cuts',
+        dest='apply_cuts',
+        action='store_false',
+        default=True,
+        help='Switch of cuts.'
+    )
+    parser.add_option(
         '--no-template-background',
         dest='template_background',
         action='store_false',
@@ -760,7 +780,8 @@ if __name__ == '__main__':
             skymap_bin_size=options.bin_size,
             r_overs=options.oversampling_radius,
             ring_bg_radii=options.ring_bg_radii,
-            template_background=options.template_background,
+            apply_cuts=options.apply_cuts,
+            template_background=options.template_background,            
             skymap_center=options.skymap_center,
             write_output=options.write_output,
             do_graphical_output=options.graphical_output,

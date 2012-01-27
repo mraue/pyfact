@@ -160,10 +160,14 @@ def get_cam_acc(camdist, rmax=4., nbins=0, exreg=None, fit=False, fitfunc=None, 
         if not p0 :
             p0 = [n[0] / r_a[0], 1.5, 3., -5.] # Initial guess for the parameters
         fitter = pf.ChisquareFitter(fitfunc)
-        m = n != 0
+        m = (n != 0) * (nerr != 0.)
         if np.sum(m) <= len(p0) :
             logging.error('Could not fit camera acceptance (dof={0}, bins={1})'.format(len(p0), np.sum(m)))
-        fitter.fit_data(p0, r[m], n[m] / r_a[m] / (1. - ex_a[m]), nerr[m] / r_a[m] / (1. - ex_a[m]))
+        # ok, this _should_ be improved !!!
+        x, y, yerr =  r[m], n[m] / r_a[m] / (1. - ex_a[m]) , nerr[m] / r_a[m] / (1. - ex_a[m])
+        m = np.isfinite(x) * np.isfinite(y) * np.isfinite(yerr) * (yerr != 0.)
+        #fitter.fit_data(p0, r[m], n[m] / r_a[m] / (1. - ex_a[m]), nerr[m] / r_a[m] / (1. - ex_a[m]))
+        fitter.fit_data(p0, x[m], y[m], yerr[m])
     return (n, bins, nerr, r, r_a, ex_a, fitter)
 
 #---------------------------------------------------------------------------
