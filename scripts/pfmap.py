@@ -208,8 +208,7 @@ def create_sky_map(input_file_name,
             #phomask = (tbdata.field('HIL_MSW ') < 1.1) * emask * camdmask
             #  (HIL_MSW>-2.0&&HIL_MSW<0.9)&&(HIL_MSL>-2.0&&HIL_MSL<2.0)
 
-
-            if ex1hdr.has_key('TEL') and (ex1hdr['TEL'].strip() == 'MAGIC') :
+            if ('TEL' in ex1hdr) and (ex1hdr['TEL'].strip() == 'MAGIC') :
                 # MAGIC
                 phomask *= (tbdata.field('HADRONNESS') < .85) 
                 hadmask *= (tbdata.field('HADRONNESS') > .85) 
@@ -262,9 +261,9 @@ def create_sky_map(input_file_name,
         #    fitter.print_results()
 
         # DEBUG plot
-        plt.errorbar(r, n / r_a / (1. - ex_a), nerr / r_a / (1. - ex_a))
-        plt.plot(r, fitter.fitfunc(fitter.results[0], r))
-        plt.show()
+        #plt.errorbar(r, n / r_a / (1. - ex_a), nerr / r_a / (1. - ex_a))
+        #plt.plot(r, fitter.fitfunc(fitter.results[0], r))
+        #plt.show()
 
         had_acc, had_n, had_fit = None, None, None
         if template_background :
