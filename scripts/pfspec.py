@@ -311,7 +311,7 @@ def create_spectrum(input_file_names,
             cci_a(obj_cam_dist + h_edges_r,
                   np.ones(theta2_hist_nbins + 1) * rexdeg,
                   np.ones(theta2_hist_nbins + 1) * obj_cam_dist) / np.pi
-            + cci_a(obj_cam_dist -  h_edges_r,
+            - cci_a(obj_cam_dist -  h_edges_r,
                     np.ones(theta2_hist_nbins + 1) * rexdeg,
                     np.ones(theta2_hist_nbins + 1) * obj_cam_dist) / np.pi
             )
