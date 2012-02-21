@@ -436,57 +436,6 @@ def create_sky_map(input_file_name,
         for ext, data in outfile_data.iteritems() :
             pf.map_to_primaryhdu(data, rarange, decrange).writeto(outfile_base_name + ext)
 
-        #outfile_extensions = ['_events.fits', '_acceptance.fits', '_events_over.fits', '_background_over.fits',
-        #                 '_significance_over.fits', '_excess_over.fits', '_alpha_overs.fits']
-
-        #pf.map_to_primaryhdu(sky_hist, rarange, decrange).writeto(outfile_base_name + outfile_extensions[0])
-        #pf.map_to_primaryhdu(acc_hist, rarange, decrange).writeto(outfile_base_name + outfile_extensions[1])
-        #pf.map_to_primaryhdu(sky_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[2])
-        #pf.map_to_primaryhdu(sky_bg_ring, rarange, decrange).writeto(outfile_base_name + outfile_extensions[3])
-        #pf.map_to_primaryhdu(rng_sig_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[4])
-        #pf.map_to_primaryhdu(rng_exc_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[5])
-        #pf.map_to_primaryhdu(rng_alpha_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[6])
-
-        #outfile_base_name = pf.unique_base_file_name(outfile_base_name)
-
-        #hdu_list= []
-        #hdu = pf.map_to_hdu(sky_hist, rarange, decrange)
-        #hdu.name = 'SKYHIST'
-        #hdu_list.append(hdu)
-        #hdu = pf.map_to_hdu(acc_hist, rarange, decrange)
-        #hdu.name = 'ACCHIST'
-        #hdu_list.append(hdu)
-        #hdu = pf.map_to_hdu(sky_bg_ring, rarange, decrange)
-        #hdu.name = 'BGRING'
-        #hdu_list.append(hdu)
-        #hdu = pf.map_to_hdu(sky_overs, rarange, decrange)
-        #hdu.name = 'SKYOVER'
-        #hdu_list.append(hdu)
-        #hdu = pf.map_to_hdu(rng_sig, rarange, decrange)
-        #hdu.name = 'RNGSIG'
-        #hdu_list.append(hdu)
-        #hdu = pf.map_to_hdu(rng_exc, rarange, decrange)
-        #hdu.name = 'RNGEXC'
-        #hdu_list.append(hdu)
-        #hdu = pf.map_to_hdu(rng_alpha, rarange, decrange)
-        #hdu.name = 'RNGALP'
-        #hdu_list.append(hdu)
-        #hdu = pf.map_to_hdu(rng_sig_overs, rarange, decrange)
-        #hdu.name = 'RNGSIGO'
-        #hdu_list.append(hdu)
-        #hdu = pf.map_to_hdu(rng_exc_overs, rarange, decrange)
-        #hdu.name = 'RNGEXCO'
-        #hdu_list.append(hdu)
-        #hdu = pf.map_to_hdu(rng_alpha_overs, rarange, decrange)
-        #hdu.name = 'RNGALPO'
-        #hdu_list.append(hdu)
-        #
-        ## Create primary HDU and HDU list to be stored in the output file
-        #hdu = pyfits.PrimaryHDU()
-        #hdu_list.insert(0, hdu)
-        #hdulist = pyfits.HDUList(hdu_list)
-        #hdulist.writeto(outfile_base_name + '.fits')
-
         if template_background :
             outfile_base_name = 'skymap_template'
             outfile_extensions = ['_background.fits', '_acceptance.fits', '_background_over.fits',
