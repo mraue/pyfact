@@ -130,12 +130,8 @@ def create_sky_map(input_file_name,
         file_list = [input_file_name]
     except :
         # We are dealing with a bankfile
-        f = open(input_file_name)
-        for l in f:
-            l = l.strip(' \t\n')
-            if l and (l[0] is not '#'):
-                file_list.append(l.split()[0])
-        f.close()
+        logging.info('Reading files from bankfile {0}'.format(input_file_name))
+        file_list = np.loadtxt(input_file_name, dtype='S', usecols=[0])
 
     for file_name in file_list :
 
@@ -144,20 +140,11 @@ def create_sky_map(input_file_name,
         # Open fits file
         hdulist = pyfits.open(file_name)
 
-        # Print file info
-        #hdulist.info()
-
         # Access header of second extension
         ex1hdr = hdulist[1].header
 
-        # Print header of the first extension as ascardlist
-        #print ex1hdr.ascardlist()
-
         # Access data of first extension
-        tbdata = hdulist[1].data # assuming the first extension is a table
-
-        # Print table columns
-        #hdulist[1].columns.info()
+        tbdata = hdulist[1].data
 
         #---------------------------------------------------------------------------
         # Calculate some useful quantities and add them to the table
