@@ -51,7 +51,6 @@ except :
 sys.path.append(os.path.abspath(sys.path[0].rsplit('/', 1)[0]))
 import pyfact as pf
 
-
 #===========================================================================
 # Main
 def create_sky_map(input_file_name,
@@ -161,9 +160,6 @@ def create_sky_map(input_file_name,
         #coldefs_new = pyfits.ColDefs([camdist_col, cosdec_col])
         coldefs_new = pyfits.ColDefs([camdist_col])
         newtable = pyfits.new_table(hdulist[1].columns + coldefs_new)
-
-        # Print new table columns
-        #newtable.columns.info()
 
         # New table data
         tbdata = newtable.data
@@ -391,11 +387,16 @@ def create_sky_map(input_file_name,
     logging.info('Calculating oversampled ring background acceptance map ..')
     acc_bg_overs, acc_bg_overs_alpha = pf.oversample_sky_map(acc_hist, sr, sky_ex_reg)
 
-    sky_alpha = acc_overs / acc_bg_overs # camera acceptance
-    sky_excess = sky_overs - sky_bg_ring * sky_alpha
-    sky_sign = pf.get_li_ma_sign(sky_overs, sky_bg_ring, sky_alpha)
+    rng_alpha = acc_hist / acc_bg_overs # camera acceptance
+    rng_exc = sky_hist - sky_bg_ring * rng_alpha
+    rng_sig = pf.get_li_ma_sign(sky_hist, sky_bg_ring, rng_alpha)
+
+    rng_alpha_overs = acc_overs / acc_bg_overs # camera acceptance
+    rng_exc_overs = sky_overs - sky_bg_ring * rng_alpha_overs
+    rng_sig_overs = pf.get_li_ma_sign(sky_overs, sky_bg_ring, rng_alpha_overs)
 
     tpl_had_overs, tpl_sig_overs, tpl_exc_overs, tpl_alpha_overs = None, None, None, None
+
     if template_background :
 
         logging.info('Calculating oversampled template background map ..')
@@ -418,17 +419,73 @@ def create_sky_map(input_file_name,
         rarange, decrange = (sky_ra_min, sky_ra_max), (sky_dec_min, sky_dec_max)
 
         outfile_base_name = 'skymap_ring'
-        outfile_extensions = ['_events.fits', '_acceptance.fits', '_events_over.fits', '_background_over.fits',
-                              '_significance_over.fits', '_excess_over.fits', '_alpha_overs.fits']
-        outfile_base_name = pf.unique_base_file_name(outfile_base_name, outfile_extensions)
+        outfile_data = {
+            '_ev.fits': sky_hist,
+            '_ac.fits': acc_hist,
+            '_ev_overs.fits': sky_overs,
+            '_bg_overs.fits': sky_bg_ring,
+            '_si_overs.fits': rng_sig_overs,
+            '_ex_overs.fits': rng_exc_overs,
+            '_al_overs.fits': rng_alpha_overs,
+            '_si.fits': rng_sig,
+            '_ex.fits': rng_exc,
+            '_al.fits': rng_alpha
+            }
+        outfile_base_name = pf.unique_base_file_name(outfile_base_name, outfile_data.keys())
 
-        pf.map_to_primaryhdu(sky_hist, rarange, decrange).writeto(outfile_base_name + outfile_extensions[0])
-        pf.map_to_primaryhdu(acc_hist, rarange, decrange).writeto(outfile_base_name + outfile_extensions[1])
-        pf.map_to_primaryhdu(sky_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[2])
-        pf.map_to_primaryhdu(sky_bg_ring, rarange, decrange).writeto(outfile_base_name + outfile_extensions[3])
-        pf.map_to_primaryhdu(sky_sign, rarange, decrange).writeto(outfile_base_name + outfile_extensions[4])
-        pf.map_to_primaryhdu(sky_excess, rarange, decrange).writeto(outfile_base_name + outfile_extensions[5])
-        pf.map_to_primaryhdu(sky_alpha, rarange, decrange).writeto(outfile_base_name + outfile_extensions[6])
+        for ext, data in outfile_data.iteritems() :
+            pf.map_to_primaryhdu(data, rarange, decrange).writeto(outfile_base_name + ext)
+
+        #outfile_extensions = ['_events.fits', '_acceptance.fits', '_events_over.fits', '_background_over.fits',
+        #                 '_significance_over.fits', '_excess_over.fits', '_alpha_overs.fits']
+
+        #pf.map_to_primaryhdu(sky_hist, rarange, decrange).writeto(outfile_base_name + outfile_extensions[0])
+        #pf.map_to_primaryhdu(acc_hist, rarange, decrange).writeto(outfile_base_name + outfile_extensions[1])
+        #pf.map_to_primaryhdu(sky_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[2])
+        #pf.map_to_primaryhdu(sky_bg_ring, rarange, decrange).writeto(outfile_base_name + outfile_extensions[3])
+        #pf.map_to_primaryhdu(rng_sig_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[4])
+        #pf.map_to_primaryhdu(rng_exc_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[5])
+        #pf.map_to_primaryhdu(rng_alpha_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[6])
+
+        #outfile_base_name = pf.unique_base_file_name(outfile_base_name)
+
+        #hdu_list= []
+        #hdu = pf.map_to_hdu(sky_hist, rarange, decrange)
+        #hdu.name = 'SKYHIST'
+        #hdu_list.append(hdu)
+        #hdu = pf.map_to_hdu(acc_hist, rarange, decrange)
+        #hdu.name = 'ACCHIST'
+        #hdu_list.append(hdu)
+        #hdu = pf.map_to_hdu(sky_bg_ring, rarange, decrange)
+        #hdu.name = 'BGRING'
+        #hdu_list.append(hdu)
+        #hdu = pf.map_to_hdu(sky_overs, rarange, decrange)
+        #hdu.name = 'SKYOVER'
+        #hdu_list.append(hdu)
+        #hdu = pf.map_to_hdu(rng_sig, rarange, decrange)
+        #hdu.name = 'RNGSIG'
+        #hdu_list.append(hdu)
+        #hdu = pf.map_to_hdu(rng_exc, rarange, decrange)
+        #hdu.name = 'RNGEXC'
+        #hdu_list.append(hdu)
+        #hdu = pf.map_to_hdu(rng_alpha, rarange, decrange)
+        #hdu.name = 'RNGALP'
+        #hdu_list.append(hdu)
+        #hdu = pf.map_to_hdu(rng_sig_overs, rarange, decrange)
+        #hdu.name = 'RNGSIGO'
+        #hdu_list.append(hdu)
+        #hdu = pf.map_to_hdu(rng_exc_overs, rarange, decrange)
+        #hdu.name = 'RNGEXCO'
+        #hdu_list.append(hdu)
+        #hdu = pf.map_to_hdu(rng_alpha_overs, rarange, decrange)
+        #hdu.name = 'RNGALPO'
+        #hdu_list.append(hdu)
+        #
+        ## Create primary HDU and HDU list to be stored in the output file
+        #hdu = pyfits.PrimaryHDU()
+        #hdu_list.insert(0, hdu)
+        #hdulist = pyfits.HDUList(hdu_list)
+        #hdulist.writeto(outfile_base_name + '.fits')
 
         if template_background :
             outfile_base_name = 'skymap_template'
@@ -443,7 +500,7 @@ def create_sky_map(input_file_name,
             pf.map_to_primaryhdu(tpl_exc_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[4])
             pf.map_to_primaryhdu(tpl_alpha_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[5])
 
-            logging.info('The output files can be found in {0}'.format(os.getcwd()))
+        logging.info('The output files can be found in {0}'.format(os.getcwd()))
 
     #---------------------------------------------------------------------------
     # Plot results
@@ -565,7 +622,8 @@ def create_sky_map(input_file_name,
         #----------------------------------------
         ax = plt.subplot(231) 
 
-        plt.imshow(sky_overs[::-1], extent=extent, interpolation='nearest')
+        #plt.imshow(sky_overs[::-1], extent=extent, interpolation='nearest')
+        plt.imshow(sky_hist[::-1], extent=extent, interpolation='nearest')        
 
         cb = plt.colorbar()
         cb.set_label('Events')
@@ -578,7 +636,8 @@ def create_sky_map(input_file_name,
         #----------------------------------------
         ax = plt.subplot(232) 
 
-        plt.imshow(sky_excess[::-1], extent=extent, interpolation='nearest')
+        #plt.imshow(rng_exc_overs[::-1], extent=extent, interpolation='nearest')
+        plt.imshow(rng_exc[::-1], extent=extent, interpolation='nearest')
 
         cb = plt.colorbar()
         cb.set_label('Excess events')
@@ -588,7 +647,8 @@ def create_sky_map(input_file_name,
         #----------------------------------------
         ax = plt.subplot(233) 
 
-        plt.imshow(sky_sign[::-1], extent=extent, interpolation='nearest')
+        #plt.imshow(rng_sig_overs[::-1], extent=extent, interpolation='nearest')
+        plt.imshow(rng_sig[::-1], extent=extent, interpolation='nearest')
 
         cb = plt.colorbar()
         cb.set_label('Significance')
@@ -643,7 +703,8 @@ def create_sky_map(input_file_name,
         #----------------------------------------
         ax = plt.subplot(235) 
 
-        plt.imshow(sky_alpha[::-1], extent=extent, interpolation='nearest')
+        #plt.imshow(rng_alpha_overs[::-1], extent=extent, interpolation='nearest')
+        plt.imshow(rng_alpha[::-1], extent=extent, interpolation='nearest')
 
         cb = plt.colorbar()
         cb.set_label('Alpha')
@@ -656,7 +717,9 @@ def create_sky_map(input_file_name,
         sign_hist_r_max = 2.
         sky_ex_reg = pf.get_exclusion_region_map(sky_hist, (sky_ra_min, sky_ra_max), (sky_dec_min, sky_dec_max),
                                                  [pf.SkyCircle(pf.SkyCoord(objra, objdec), sign_hist_r_max)])
-        n, bins, patches = plt.hist(sky_sign[sky_ex_reg == 0.].flatten(), bins=100, range=(-8., 8.),
+        #n, bins, patches = plt.hist(rng_sig_overs[sky_ex_reg == 0.].flatten(), bins=100, range=(-8., 8.),
+        #                        histtype='stepfilled', color='SkyBlue', log=True)
+        n, bins, patches = plt.hist(rng_sig[sky_ex_reg == 0.].flatten(), bins=100, range=(-8., 8.),
                                     histtype='stepfilled', color='SkyBlue', log=True)
 
         x = np.linspace(-5., 8., 100)

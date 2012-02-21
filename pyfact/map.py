@@ -250,6 +250,8 @@ def oversample_sky_map(sky, mask, exmap=None) :
     mask : 2d array
     exmap : 2d array
     """
+    sky = np.copy(sky)
+
     sky_nx, sky_ny =  sky.shape[0], sky.shape[1]
     mask_nx, mask_ny = mask.shape[0], mask.shape[1]
     mask_centerx, mask_centery = (mask_nx - 1) / 2, (mask_ny - 1) / 2

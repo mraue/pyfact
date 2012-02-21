@@ -54,12 +54,37 @@ def map_to_primaryhdu(map, rarange, decrange) :
     hdu : pyfits.PrimaryHDU
       FITS primary HDU containing the skymap.
     """
+    return map_to_hdu(map, rarange, decrange, primary=True)
+
+#---------------------------------------------------------------------------
+def map_to_hdu(map, rarange, decrange, primary=False) :
+    """
+    Converts a 2d numpy array into a FITS primary HDU (image).
+
+    Parameters
+    ----------
+    map : 2d array
+        Skymap.
+    rarange : array/tupel
+        Tupel/Array with two entries giving the RA range of the map i.e. (ramin, ramax).
+    decrange : array/tupel
+        Tupel/Array with two entries giving the DEC range of the map i.e (decmin, decmax).
+
+    Returns
+    -------
+    hdu : pyfits.PrimaryHDU
+      FITS primary HDU containing the skymap.
+    """
     decnbins, ranbins = map.shape
 
     decstep = (decrange[1] - decrange[0]) / float(decnbins)
     rastep = (rarange[1] - rarange[0]) / float(ranbins)
 
-    hdu = pyfits.PrimaryHDU(map)
+    hdu = None
+    if primary :
+        hdu = pyfits.PrimaryHDU(map)
+    else :
+        hdu = pyfits.ImageHDU(map)
     hdr = hdu.header
 
     # Image definition

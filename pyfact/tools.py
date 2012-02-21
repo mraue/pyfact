@@ -269,6 +269,7 @@ def unique_base_file_name(name, extension=None) :
                     if os.path.exists(name) :
                         exists = True
         return exists
+
     if filename_exists(name, extension) :
         name += datetime.datetime.now().strftime('_%Y%m%d-%H%M%S')
         if filename_exists(name, extension) :
