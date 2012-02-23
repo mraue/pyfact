@@ -36,7 +36,7 @@ import pyfits
 # Functions & classes
 
 #---------------------------------------------------------------------------
-def map_to_primaryhdu(map, rarange, decrange) :
+def map_to_primaryhdu(map, rarange, decrange, telescope='DUMMY', object_='DUMMY', author='DUMMY') :
     """
     Converts a 2d numpy array into a FITS primary HDU (image).
 
@@ -54,10 +54,10 @@ def map_to_primaryhdu(map, rarange, decrange) :
     hdu : pyfits.PrimaryHDU
       FITS primary HDU containing the skymap.
     """
-    return map_to_hdu(map, rarange, decrange, primary=True)
+    return map_to_hdu(map, rarange, decrange, primary=True, telescope=telescope, object_=object_, author=author)
 
 #---------------------------------------------------------------------------
-def map_to_hdu(map, rarange, decrange, primary=False) :
+def map_to_hdu(map, rarange, decrange, primary=False, telescope='DUMMY', object_='DUMMY', author='DUMMY') :
     """
     Converts a 2d numpy array into a FITS primary HDU (image).
 
@@ -94,17 +94,17 @@ def map_to_hdu(map, rarange, decrange, primary=False) :
     hdr.update('CUNIT2', 'deg')
     hdr.update('CRVAL1', rarange[0])
     hdr.update('CRVAL2', 0.) # Must be zero for the lines to be rectalinear according to Calabretta (2002)
-    hdr.update('CRPIX1', 1.)
-    hdr.update('CRPIX2', - decrange[0] / decstep) # Pixel outside of the image at DEC = 0.
+    hdr.update('CRPIX1', .5)
+    hdr.update('CRPIX2', - decrange[0] / decstep + .5) # Pixel outside of the image at DEC = 0.
     hdr.update('CDELT1', rastep)
     hdr.update('CDELT2', decstep)
     hdr.update('RADESYS', 'FK5')
     hdr.update('BUNIT', 'count')
 
     # Extra data
-    hdr.update('TELESCOP', 'HESS')
-    hdr.update('OBJECT', 'TEST')
-    hdr.update('AUTHOR', 'PyFACT - pfmakeskymap')
+    hdr.update('TELESCOP', telescope)
+    hdr.update('OBJECT', object_)
+    hdr.update('AUTHOR', author)
 
     # DEBUG
     #print hdr
