@@ -1,5 +1,5 @@
 #===========================================================================
-# Copyright (c) 2011, Martin Raue
+# Copyright (c) 2011-2012, Martin Raue
 # All rights reserved.
 #
 # LICENSE
