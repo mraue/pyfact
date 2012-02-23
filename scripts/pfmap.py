@@ -111,6 +111,8 @@ def create_sky_map(input_file_name,
     tpl_had_hist, tpl_acc_hist = None, None
     sky_ex_reg = None
 
+    telescope, object_ = 'NONE', 'NONE'
+
     firstloop = True
 
     exposure = 0.
@@ -205,6 +207,13 @@ def create_sky_map(input_file_name,
             # If skymap center is not set, set it to the target position of the first run
             if objra == None or objdec == None :
                 objra, objdec = ex1hdr['RA_OBJ'], ex1hdr['DEC_OBJ']
+                logging.debug('Setting analysis position to objra, objdec = {0}, {1}'.format(objra, objdec))
+            if 'TELESCOP' in ex1hdr :
+                telescope = ex1hdr['TELESCOP']
+                logging.debug('Setting TELESCOP to {0}'.format(telescope))
+            if 'OBJECT' in ex1hdr :
+                object_ = ex1hdr['OBJECT']
+                logging.debug('Setting OBJECT to {0}'.format(object_))
 
         pntra, pntdec = ex1hdr['RA_PNT'], ex1hdr['DEC_PNT']
         obj_cam_dist = pf.SkyCoord(objra, objdec).dist(pf.SkyCoord(pntra, pntdec))
@@ -289,6 +298,10 @@ def create_sky_map(input_file_name,
             sky_dec_min, sky_dec_max = objdec - skymap_size / 2., objdec + skymap_size / 2.
             objcosdec = np.cos(objdec * np.pi / 180.)
             sky_ra_min, sky_ra_max = objra - skymap_size / 2. / objcosdec, objra + skymap_size / 2. / objcosdec
+
+            logging.debug('skymap_nbins = {0}'.format(skymap_nbins))
+            logging.debug('sky_dec_min, sky_dec_max = {0}, {1}'.format(sky_dec_min, sky_dec_max))
+            logging.debug('sky_ra_min, sky_ra_max = {0}, {1}'.format(sky_ra_min, sky_ra_max))
 
         # Create sky map (i.e. bin events)
         # NOTE: In histogram2d the first axes is the vertical (y, DEC) the 2nd the horizontal axes (x, RA)
@@ -434,7 +447,8 @@ def create_sky_map(input_file_name,
         outfile_base_name = pf.unique_base_file_name(outfile_base_name, outfile_data.keys())
 
         for ext, data in outfile_data.iteritems() :
-            pf.map_to_primaryhdu(data, rarange, decrange).writeto(outfile_base_name + ext)
+            pf.map_to_primaryhdu(data, rarange, decrange, author='PyFACT pfmap',
+                                 object_=object_, telescope=telescope).writeto(outfile_base_name + ext)
 
         if template_background :
             outfile_base_name = 'skymap_template'
