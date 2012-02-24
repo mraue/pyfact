@@ -222,8 +222,18 @@ def create_spectrum(input_file_names,
         # Print new table columns
         #newtable.columns.info()
 
+        mgit = np.ones(len(tbdata), dtype=np.bool)
+        try :
+            # Note: according to the eventlist format document v1.0.0 Section 10
+            # "The times are expressed in the same units as in the EVENTS
+            # table (seconds since mission start in terresterial time)."
+            for gti in hdulist['GTI'].data :
+                mgit *= (tbdata.field('TIME') >= gti[0]) * (tbdata.field('TIME') <= gti[1])
+        except :
+            logging.warning('File does not contain a GTI extension')
+
         # New table data
-        tbdata = newtable.data
+        tbdata = newtable.data[mgit]
 
         #---------------------------------------------------------------------------
         # Select events
@@ -510,7 +520,7 @@ if __name__ == '__main__':
         dest='analysis_position',
         type='str',
         default=None,
-        help='Analysis position in RA and Dec (J2000) in degree. Format: \'(RA, Dec)\', including the quotation marks. If no center is given, the source position from the first input file is used.'
+        help='Analysis position in RA and Dec (J2000) in degrees. Format: \'(RA, Dec)\', including the quotation marks. If no center is given, the source position from the first input file is used.'
     )
     parser.add_option(
         '-r','--analysis-radius',

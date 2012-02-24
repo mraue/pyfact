@@ -151,9 +151,9 @@ def create_sky_map(input_file_name,
             # Open fits file
             hdulist = pyfits.open(file_name)
             # Access header of second extension
-            hdr = hdulist[1].header
+            hdr = hdulist['EVENTS'].header
             # Access data of first extension
-            tbdata = hdulist[1].data
+            tbdata = hdulist['EVENTS'].data
             # Calculate some useful quantities and add them to the table
             # Distance from the camera (FOV) center
             camdist = np.sqrt(tbdata.field('DETX    ') ** 2. + tbdata.field('DETY    ') ** 2.)
@@ -172,7 +172,7 @@ def create_sky_map(input_file_name,
             tpl_hdulist, tpl_hdr, tpl_tbdata = get_evl(tpl_file_list[i])
 
         #---------------------------------------------------------------------------
-        # Intialize
+        # Intialize & GTI
 
         objra, objdec = ex1hdr['RA_OBJ'], ex1hdr['DEC_OBJ']
         if firstloop :
@@ -187,6 +187,20 @@ def create_sky_map(input_file_name,
                 object_ = ex1hdr['OBJECT']
                 logging.debug('Setting OBJECT to {0}'.format(object_))
 
+        mgit, tpl_mgit = np.ones(len(tbdata), dtype=np.bool), None
+        if template_background :
+            tpl_mgit = np.ones(len(tpl_tbdata), dtype=np.bool)
+        try :
+            # Note: according to the eventlist format document v1.0.0 Section 10
+            # "The times are expressed in the same units as in the EVENTS
+            # table (seconds since mission start in terresterial time)."
+            for gti in hdulist['GTI'].data :
+                mgit *= (tbdata.field('TIME') >= gti[0]) * (tbdata.field('TIME') <= gti[1])
+                if template_background :
+                    tpl_mgit *= (tpl_tbdata.field('TIME') >= gti[0]) * (tpl_tbdata.field('TIME') <= gti[1])
+        except :
+            logging.warning('File does not contain a GTI extension')
+        
         #---------------------------------------------------------------------------
         #  Handle exclusion region
 
@@ -206,7 +220,7 @@ def create_sky_map(input_file_name,
         logging.info('RUN Pointing pos.   : RA {0:.4f} [deg], Dec {1:.4f} [deg]'.format(pntra, pntdec))
         logging.info('RUN Obj. cam. dist. : {0:.4f} [deg]'.format(obj_cam_dist))
         
-        # Most important cut for the acceptance calculation: exclude source region
+        # Cut out source region for acceptance fitting
         exmask = None
         for sc in sky_ex_reg :
             if exmask :
@@ -215,10 +229,18 @@ def create_sky_map(input_file_name,
                 exmask = sc.c.dist(pf.SkyCoord(tbdata.field('RA'), tbdata.field('DEC'))) < sc.r
         exmask = np.invert(exmask)
 
-        photbdata = tbdata[exmask]
+        photbdata = tbdata[exmask * mgit]
+
         hadtbdata = None
         if template_background :
-            hadtbdata = tpl_tbdata[exmask]
+            exmask = None
+            for sc in sky_ex_reg :
+                if exmask :
+                    exmask *= sc.c.dist(pf.SkyCoord(tpl_tbdata.field('RA'), tpl_tbdata.field('DEC'))) < sc.r
+                else :
+                    exmask = sc.c.dist(pf.SkyCoord(tpl_tbdata.field('RA'), tpl_tbdata.field('DEC'))) < sc.r
+            exmask = np.invert(exmask)
+            hadtbdata = tpl_tbdata[exmask * tpl_mgit]
 
         #---------------------------------------------------------------------------
         # Calculate camera acceptance
@@ -248,13 +270,10 @@ def create_sky_map(input_file_name,
             had_n, had_fit = had_acc[0], had_acc[6]
             logging.debug('Camera acceptance hadrons fit probability: {0}'.format(had_fit.prob))
 
-        #---------------------------------------------------------------------------
-        # Skymap - definitions/calculation
-
-        # All photons including the exclusion regions
-        photbdata = tbdata
+        # !!! All photons including the exclusion regions
+        photbdata = tbdata[mgit]
         if template_background :
-            hadtbdata = tpl_tbdata
+            hadtbdata = tpl_tbdata[tpl_mgit]
 
         tpl_acc_cor_use_interp = True
         tpl_acc_f, tpl_acc = None, None
@@ -268,6 +287,9 @@ def create_sky_map(input_file_name,
             tpl_acc[m] = tpl_acc_f(r[-1])
             m = hadtbdata.field('XCAMDIST') < r[0]
             tpl_acc[m] = tpl_acc_f(r[0])
+
+        #---------------------------------------------------------------------------
+        # Skymap - definitions/calculation
 
         # Object position in the sky
         if firstloop :

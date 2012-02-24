@@ -115,6 +115,11 @@ class SkyCircle:
         return self.c.dist(sc.c) <= self.r + sc.r
 
 #---------------------------------------------------------------------------
+def skycircle_from_str(cstr) :
+    x, y, r = eval(cstr.upper().replace('CIRCLE', ''))
+    return SkyCircle(SkyCoord(x, y), r)
+
+#---------------------------------------------------------------------------
 def get_cam_acc(camdist, rmax=4., nbins=0, exreg=None, fit=False, fitfunc=None, p0=None) :
     """
     Calculates the camera acceptance histogram from a given list with camera distances (event list).
