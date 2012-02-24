@@ -510,7 +510,7 @@ if __name__ == '__main__':
         dest='analysis_position',
         type='str',
         default=None,
-        help='Analysis position in RA and Dec (J2000) in degree. Format: \'(RA, Dec)\', including the quotation marks. If no center is given, the source position from the first input file is used.'
+        help='Analysis position in RA and Dec (J2000) in degrees. Format: \'(RA, Dec)\', including the quotation marks. If no center is given, the source position from the first input file is used.'
     )
     parser.add_option(
         '-r','--analysis-radius',
