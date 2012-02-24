@@ -58,8 +58,7 @@ def create_sky_map(input_file_name,
                    skymap_bin_size=0.05,
                    r_overs=.125,
                    ring_bg_radii=None,
-                   apply_cuts=True,
-                   template_background=True,
+                   template_background=None,
                    skymap_center=None,
                    write_output=False,
                    do_graphical_output=True,
@@ -120,50 +119,60 @@ def create_sky_map(input_file_name,
     # Read in input file, can be individual fits or bankfile
     logging.info('Opening input file ..')
 
-    # This list will hold the individual file names as strings
-    file_list = []
+    def get_filelist(input_file_name) :
+        # Check if we are dealing with a single file or a bankfile
+        # and create/read in the file list accordingly
+        try :
+            f = pyfits.open(input_file_name)
+            f.close()
+            file_list = [input_file_name]
+        except :
+            # We are dealing with a bankfile
+            logging.info('Reading files from bankfile {0}'.format(input_file_name))
+            file_list = np.loadtxt(input_file_name, dtype='S', usecols=[0])
+        return file_list
 
-    # Check if we are dealing with a single file or a bankfile
-    # and create/read in the file list accordingly
-    try :
-        f = pyfits.open(input_file_name)
-        f.close()
-        file_list = [input_file_name]
-    except :
-        # We are dealing with a bankfile
-        logging.info('Reading files from bankfile {0}'.format(input_file_name))
-        file_list = np.loadtxt(input_file_name, dtype='S', usecols=[0])
+    file_list = get_filelist(input_file_name)
 
-    for file_name in file_list :
+    tpl_file_list = None
+
+    # Read in template files
+    if template_background :
+        tpl_file_list = get_filelist(template_background)
+        if len(file_list) != len(tpl_file_list) :
+            logging.warning('Different number of signal and template background files. Switching off template background analysis.')
+            template_background = None
+
+    for i, file_name in enumerate(file_list) :
 
         logging.info('Processing file {0}'.format(file_name))
 
-        # Open fits file
-        hdulist = pyfits.open(file_name)
+        def get_evl(file_name) :
+            # Open fits file
+            hdulist = pyfits.open(file_name)
+            # Access header of second extension
+            hdr = hdulist[1].header
+            # Access data of first extension
+            tbdata = hdulist[1].data
+            # Calculate some useful quantities and add them to the table
+            # Distance from the camera (FOV) center
+            camdist = np.sqrt(tbdata.field('DETX    ') ** 2. + tbdata.field('DETY    ') ** 2.)
+            camdist_col = pyfits.Column(name='XCAMDIST', format='1E', unit='deg', array=camdist)
+            # Add new columns to the table
+            coldefs_new = pyfits.ColDefs([camdist_col])
+            newtable = pyfits.new_table(hdulist[1].columns + coldefs_new)
+            # New table data
+            return hdulist, hdr, newtable.data
 
-        # Access header of second extension
-        ex1hdr = hdulist[1].header
+        hdulist, ex1hdr, tbdata = get_evl(file_name)
 
-        # Access data of first extension
-        tbdata = hdulist[1].data
+        # Read in eventlist for template background
+        tpl_hdulist, tpl_tbdata = None, None
+        if template_background :
+            tpl_hdulist, tpl_hdr, tpl_tbdata = get_evl(tpl_file_list[i])
 
         #---------------------------------------------------------------------------
-        # Calculate some useful quantities and add them to the table
-
-        # Distance from the camera (FOV) center
-        camdist = np.sqrt(tbdata.field('DETX    ') ** 2. + tbdata.field('DETY    ') ** 2.)
-        camdist_col = pyfits.Column(name='XCAMDIST', format='1E', unit='deg', array=camdist)
-
-        # Add new columns to the table
-        #coldefs_new = pyfits.ColDefs([camdist_col, cosdec_col])
-        coldefs_new = pyfits.ColDefs([camdist_col])
-        newtable = pyfits.new_table(hdulist[1].columns + coldefs_new)
-
-        # New table data
-        tbdata = newtable.data
-
-        #---------------------------------------------------------------------------
-        # Select events
+        # Intialize
 
         objra, objdec = ex1hdr['RA_OBJ'], ex1hdr['DEC_OBJ']
         if firstloop :
@@ -177,6 +186,9 @@ def create_sky_map(input_file_name,
             if 'OBJECT' in ex1hdr :
                 object_ = ex1hdr['OBJECT']
                 logging.debug('Setting OBJECT to {0}'.format(object_))
+
+        #---------------------------------------------------------------------------
+        #  Handle exclusion region
 
         # If no exclusion regions are given, use the object position from the first run
         if sky_ex_reg == None :
@@ -204,19 +216,15 @@ def create_sky_map(input_file_name,
         exmask = np.invert(exmask)
 
         photbdata = tbdata[exmask]
-        hadtbdata = tbdata[exmask]
-
-        if template_background and len(hadtbdata) < 100:
-            logging.warning('No background type events for template background detected.')
-            logging.info('Switching off template background.')
-            template_background = False
+        hadtbdata = None
+        if template_background :
+            hadtbdata = tpl_tbdata[exmask]
 
         #---------------------------------------------------------------------------
         # Calculate camera acceptance
-        print [(sc.c.dist(pf.SkyCoord(pntra, pntdec)), sc.r) for sc in sky_ex_reg]
+
         n, bins, nerr, r, r_a, ex_a, fitter = pf.get_cam_acc(
             photbdata.field('XCAMDIST'),
-            #exreg=[[rexdeg, obj_cam_dist]],
             exreg=[(sc.r, sc.c.dist(pf.SkyCoord(pntra, pntdec))) for sc in sky_ex_reg],
             fit=True
             )
@@ -234,7 +242,7 @@ def create_sky_map(input_file_name,
         if template_background :
             had_acc = pf.get_cam_acc(
                 hadtbdata.field('XCAMDIST'),
-                exreg=[[rexdeg, obj_cam_dist]],
+                exreg=[(sc.r, sc.c.dist(pf.SkyCoord(pntra, pntdec))) for sc in sky_ex_reg],
                 fit=True
                 )
             had_n, had_fit = had_acc[0], had_acc[6]
@@ -245,7 +253,8 @@ def create_sky_map(input_file_name,
 
         # All photons including the exclusion regions
         photbdata = tbdata
-        hadtbdata = tbdata
+        if template_background :
+            hadtbdata = tpl_tbdata
 
         tpl_acc_cor_use_interp = True
         tpl_acc_f, tpl_acc = None, None
@@ -296,7 +305,6 @@ def create_sky_map(input_file_name,
 
             sky_ex_reg_map = pf.get_exclusion_region_map(sky_hist, (sky_ra_min, sky_ra_max), (sky_dec_min, sky_dec_max),
                                                          sky_ex_reg)
-
         else :
             sky_hist += sky[0]
 
@@ -332,7 +340,6 @@ def create_sky_map(input_file_name,
             else :
                 tpl_had_hist += tpl_had[0]
 
-
             # Create acceptance map for template background
             tpl_acc = np.histogram2d(x=hadtbdata.field('DEC     '), y=hadtbdata.field('RA      '),
                                      bins=[skymap_nbins, skymap_nbins],
@@ -345,8 +352,11 @@ def create_sky_map(input_file_name,
 
         # Close fits file
         hdulist.close()
+        if tpl_hdulist :
+            tpl_hdulist.close()
 
         # Clean up memory
+        newtable = None
         gc.collect()
 
         firstloop = False
@@ -729,18 +739,10 @@ if __name__ == '__main__':
         help='Write results to FITS files in current directory [default: %default]'
     )
     parser.add_option(
-        '--no-cuts',
-        dest='apply_cuts',
-        action='store_false',
-        default=True,
-        help='Switch of cuts.'
-    )
-    parser.add_option(
-        '--no-template-background',
+        '-t', '--template-background',
         dest='template_background',
-        action='store_false',
-        default=True,
-        help='Switch off template background.'
+        default=None,
+        help='Bankfile with template background eventlists.'
     )
     parser.add_option(
         '--no-graphical-output',
@@ -765,7 +767,6 @@ if __name__ == '__main__':
             skymap_bin_size=options.bin_size,
             r_overs=options.oversampling_radius,
             ring_bg_radii=options.ring_bg_radii,
-            apply_cuts=options.apply_cuts,
             template_background=options.template_background,            
             skymap_center=options.skymap_center,
             write_output=options.write_output,
