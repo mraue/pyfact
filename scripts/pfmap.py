@@ -169,40 +169,6 @@ def create_sky_map(input_file_name,
         #---------------------------------------------------------------------------
         # Select events
 
-        # Select events with at least one tel above the required image amplitude/size (here iamin p.e.)
-        # This needs to be changed for the new TELEVENT table scheme
-        #iamin = 80.
-        #iamask = (tbdata.field('HIL_TEL_SIZE')[:,0] > iamin) \
-        #    + (tbdata.field('HIL_TEL_SIZE')[:,1] > iamin) \
-        #    + (tbdata.field('HIL_TEL_SIZE')[:,2] > iamin) \
-        #    + (tbdata.field('HIL_TEL_SIZE')[:,3] > iamin)
-
-        # Select events between emin & emax TeV
-        emin, emax = .1, 100.
-        emask = (tbdata.field('ENERGY  ') > emin) \
-            * (tbdata.field('ENERGY  ') < emax)
-
-        # Only use events with < 4 deg camera distance
-        camdmask = tbdata.field('XCAMDIST') < 4.
-
-        phomask = emask * camdmask
-        hadmask = emask * camdmask
-
-        if apply_cuts :
-            # Combine cuts for photons
-            #phomask = (tbdata.field('HIL_MSW ') < 1.1) * emask * camdmask
-            #  (HIL_MSW>-2.0&&HIL_MSW<0.9)&&(HIL_MSL>-2.0&&HIL_MSL<2.0)
-
-            if ('TEL' in ex1hdr) and (ex1hdr['TEL'].strip() == 'MAGIC') :
-                # MAGIC
-                phomask *= (tbdata.field('HADRONNESS') < .85) 
-                hadmask *= (tbdata.field('HADRONNESS') > .85) 
-            else :
-                # HESS
-                phomask = (tbdata.field('HIL_MSW ') > -2.) * (tbdata.field('HIL_MSW ') < .9) * (tbdata.field('HIL_MSL ') > -2.)  * (tbdata.field('HIL_MSL ') < 2.)
-                ##phomask = (tbdata.field('HIL_MSW ') > -2.)  * (tbdata.field('HIL_MSW ') < .9) * emask * camdmask
-                hadmask = (tbdata.field('HIL_MSW ') > 1.) * (tbdata.field('HIL_MSW ') < 10.)
-    
         if firstloop :
             # If skymap center is not set, set it to the target position of the first run
             if objra == None or objdec == None :
@@ -231,8 +197,8 @@ def create_sky_map(input_file_name,
         exmask = np.invert(np.sqrt(((tbdata.field('RA      ') - objra) / np.cos(objdec * np.pi / 180.)) ** 2.
                                    + (tbdata.field('DEC     ') - objdec) ** 2.) < rexdeg)
 
-        photbdata = tbdata[phomask * exmask]
-        hadtbdata = tbdata[hadmask * exmask]
+        photbdata = tbdata[exmask]
+        hadtbdata = tbdata[exmask]
 
         if template_background and len(hadtbdata) < 100:
             logging.warning('No background type events for template background detected.')
@@ -271,8 +237,8 @@ def create_sky_map(input_file_name,
         # Skymap - definitions/calculation
 
         # All photons including the exclusion regions
-        photbdata = tbdata[phomask]
-        hadtbdata = tbdata[hadmask]
+        photbdata = tbdata
+        hadtbdata = tbdata
 
         tpl_acc_cor_use_interp = True
         tpl_acc_f, tpl_acc = None, None
@@ -585,8 +551,8 @@ def create_sky_map(input_file_name,
         #----------------------------------------
         ax = plt.subplot(231) 
 
-        #plt.imshow(sky_overs[::-1], extent=extent, interpolation='nearest')
-        plt.imshow(sky_hist[::-1], extent=extent, interpolation='nearest')        
+        plt.imshow(sky_overs[::-1], extent=extent, interpolation='nearest')
+        #plt.imshow(sky_hist[::-1], extent=extent, interpolation='nearest')        
 
         cb = plt.colorbar()
         cb.set_label('Events')
@@ -599,8 +565,8 @@ def create_sky_map(input_file_name,
         #----------------------------------------
         ax = plt.subplot(232) 
 
-        #plt.imshow(rng_exc_overs[::-1], extent=extent, interpolation='nearest')
-        plt.imshow(rng_exc[::-1], extent=extent, interpolation='nearest')
+        plt.imshow(rng_exc_overs[::-1], extent=extent, interpolation='nearest')
+        #plt.imshow(rng_exc[::-1], extent=extent, interpolation='nearest')
 
         cb = plt.colorbar()
         cb.set_label('Excess events')
@@ -610,8 +576,8 @@ def create_sky_map(input_file_name,
         #----------------------------------------
         ax = plt.subplot(233) 
 
-        #plt.imshow(rng_sig_overs[::-1], extent=extent, interpolation='nearest')
-        plt.imshow(rng_sig[::-1], extent=extent, interpolation='nearest')
+        plt.imshow(rng_sig_overs[::-1], extent=extent, interpolation='nearest')
+        #plt.imshow(rng_sig[::-1], extent=extent, interpolation='nearest')
 
         cb = plt.colorbar()
         cb.set_label('Significance')
@@ -666,8 +632,8 @@ def create_sky_map(input_file_name,
         #----------------------------------------
         ax = plt.subplot(235) 
 
-        #plt.imshow(rng_alpha_overs[::-1], extent=extent, interpolation='nearest')
-        plt.imshow(rng_alpha[::-1], extent=extent, interpolation='nearest')
+        plt.imshow(rng_alpha_overs[::-1], extent=extent, interpolation='nearest')
+        #plt.imshow(rng_alpha[::-1], extent=extent, interpolation='nearest')
 
         cb = plt.colorbar()
         cb.set_label('Alpha')
@@ -680,10 +646,10 @@ def create_sky_map(input_file_name,
         sign_hist_r_max = 2.
         sky_ex_reg = pf.get_exclusion_region_map(sky_hist, (sky_ra_min, sky_ra_max), (sky_dec_min, sky_dec_max),
                                                  [pf.SkyCircle(pf.SkyCoord(objra, objdec), sign_hist_r_max)])
-        #n, bins, patches = plt.hist(rng_sig_overs[sky_ex_reg == 0.].flatten(), bins=100, range=(-8., 8.),
-        #                        histtype='stepfilled', color='SkyBlue', log=True)
-        n, bins, patches = plt.hist(rng_sig[sky_ex_reg == 0.].flatten(), bins=100, range=(-8., 8.),
-                                    histtype='stepfilled', color='SkyBlue', log=True)
+        n, bins, patches = plt.hist(rng_sig_overs[sky_ex_reg == 0.].flatten(), bins=100, range=(-8., 8.),
+                                histtype='stepfilled', color='SkyBlue', log=True)
+        #n, bins, patches = plt.hist(rng_sig[sky_ex_reg == 0.].flatten(), bins=100, range=(-8., 8.),
+        #                            histtype='stepfilled', color='SkyBlue', log=True)
 
         x = np.linspace(-5., 8., 100)
         plt.plot(x, gauss_func([float(n.max()), 0., 1.], x), label='Gauss ($\sigma=1.$, mean=0.)')
@@ -729,11 +695,11 @@ if __name__ == '__main__':
         help='Bin size in degree [default: %default].'
     )
     parser.add_option(
-        '-c','--skymap-center',
+        '-p','--analysis-position',
         dest='skymap_center',
         type='str',
         default=None,
-        help='Center of the skymap in RA and Dec (J2000) in degree. Format: \'(RA, Dec)\', including the quotation marks. If no center is given, the source position from the first input file is used.'
+        help='Center of the skymap in RA and Dec (J2000) in degrees. Format: \'(RA, Dec)\', including the quotation marks. If no center is given, the source position from the first input file is used.'
     )
     parser.add_option(
         '-r','--oversampling-radius',
