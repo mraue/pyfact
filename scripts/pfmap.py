@@ -89,10 +89,10 @@ def create_sky_map(input_file_name,
     rexdeg = .25
 
     # Intialize some variables
-    objra, objdec, pntra, pntdec = None, None, None, None
+    skycenra, skycendec, pntra, pntdec = None, None, None, None
     if skymap_center :
-        objra, objdec = eval(skymap_center)
-        logging.info('Skymap center: RA {0}, Dec {1}'.format(objra, objdec))
+        skycenra, skycendec = eval(skymap_center)
+        logging.info('Skymap center: RA {0}, Dec {1}'.format(skycenra, skycendec))
 
     ring_bg_r_min, ring_bg_r_max = .3, .7
     if ring_bg_radii :
@@ -109,7 +109,7 @@ def create_sky_map(input_file_name,
     skymap_nbins, sky_dec_min, sky_dec_max, objcosdec, sky_ra_min, sky_ra_max = 0, 0., 0., 0., 0., 0.
     sky_hist, acc_hist, extent = None, None, None
     tpl_had_hist, tpl_acc_hist = None, None
-    sky_ex_reg = None
+    sky_ex_reg, sky_ex_reg_map = None, None
 
     telescope, object_ = 'NONE', 'NONE'
 
@@ -154,10 +154,6 @@ def create_sky_map(input_file_name,
         camdist = np.sqrt(tbdata.field('DETX    ') ** 2. + tbdata.field('DETY    ') ** 2.)
         camdist_col = pyfits.Column(name='XCAMDIST', format='1E', unit='deg', array=camdist)
 
-        ## cos(DEC)
-        #cosdec = np.cos(tbdata.field('DEC     ') * np.pi / 180.)
-        #cosdec_col = pyfits.Column(name='XCOSDEC', format='1E', array=cosdec)
-
         # Add new columns to the table
         #coldefs_new = pyfits.ColDefs([camdist_col, cosdec_col])
         coldefs_new = pyfits.ColDefs([camdist_col])
@@ -169,11 +165,12 @@ def create_sky_map(input_file_name,
         #---------------------------------------------------------------------------
         # Select events
 
+        objra, objdec = ex1hdr['RA_OBJ'], ex1hdr['DEC_OBJ']
         if firstloop :
-            # If skymap center is not set, set it to the target position of the first run
-            if objra == None or objdec == None :
-                objra, objdec = ex1hdr['RA_OBJ'], ex1hdr['DEC_OBJ']
-                logging.debug('Setting analysis position to objra, objdec = {0}, {1}'.format(objra, objdec))
+            # If skymap center is not set, set it to the object position of the first run
+            if skycenra == None or skycendec == None :
+                skycenra, skycendec = objra, objdec
+                logging.debug('Setting skymap center to skycenra, skycendec = {0}, {1}'.format(skycenra, skycendec))
             if 'TELESCOP' in ex1hdr :
                 telescope = ex1hdr['TELESCOP']
                 logging.debug('Setting TELESCOP to {0}'.format(telescope))
@@ -181,8 +178,12 @@ def create_sky_map(input_file_name,
                 object_ = ex1hdr['OBJECT']
                 logging.debug('Setting OBJECT to {0}'.format(object_))
 
+        # If no exclusion regions are given, use the object position from the first run
+        if sky_ex_reg == None :
+            sky_ex_reg = [pf.SkyCircle(pf.SkyCoord(objra, objdec), 0.25)]
+
         pntra, pntdec = ex1hdr['RA_PNT'], ex1hdr['DEC_PNT']
-        obj_cam_dist = pf.SkyCoord(objra, objdec).dist(pf.SkyCoord(pntra, pntdec))
+        obj_cam_dist = pf.SkyCoord(skycenra, skycendec).dist(pf.SkyCoord(pntra, pntdec))
 
         exposure_run = ex1hdr['LIVETIME']
         exposure += exposure_run
@@ -194,8 +195,13 @@ def create_sky_map(input_file_name,
         logging.info('RUN Obj. cam. dist. : {0:.4f} [deg]'.format(obj_cam_dist))
         
         # Most important cut for the acceptance calculation: exclude source region
-        exmask = np.invert(np.sqrt(((tbdata.field('RA      ') - objra) / np.cos(objdec * np.pi / 180.)) ** 2.
-                                   + (tbdata.field('DEC     ') - objdec) ** 2.) < rexdeg)
+        exmask = None
+        for sc in sky_ex_reg :
+            if exmask :
+                exmask *= sc.c.dist(pf.SkyCoord(tbdata.field('RA'), tbdata.field('DEC'))) < sc.r
+            else :
+                exmask = sc.c.dist(pf.SkyCoord(tbdata.field('RA'), tbdata.field('DEC'))) < sc.r
+        exmask = np.invert(exmask)
 
         photbdata = tbdata[exmask]
         hadtbdata = tbdata[exmask]
@@ -207,10 +213,11 @@ def create_sky_map(input_file_name,
 
         #---------------------------------------------------------------------------
         # Calculate camera acceptance
-        
+        print [(sc.c.dist(pf.SkyCoord(pntra, pntdec)), sc.r) for sc in sky_ex_reg]
         n, bins, nerr, r, r_a, ex_a, fitter = pf.get_cam_acc(
             photbdata.field('XCAMDIST'),
-            exreg=[[rexdeg, obj_cam_dist]],
+            #exreg=[[rexdeg, obj_cam_dist]],
+            exreg=[(sc.r, sc.c.dist(pf.SkyCoord(pntra, pntdec))) for sc in sky_ex_reg],
             fit=True
             )
 
@@ -255,15 +262,15 @@ def create_sky_map(input_file_name,
 
         # Object position in the sky
         if firstloop :
-            #objra, objdec, skymap_size = ex1hdr['RA_OBJ'], ex1hdr['DEC_OBJ'], 6.
-            #if objra == None or objdec == None :
-            #    objra, objdec = ex1hdr['RA_OBJ'], ex1hdr['DEC_OBJ']
+            #skycenra, objdec, skymap_size = ex1hdr['RA_OBJ'], ex1hdr['DEC_OBJ'], 6.
+            #if skycenra == None or objdec == None :
+            #    skycenra, objdec = ex1hdr['RA_OBJ'], ex1hdr['DEC_OBJ']
 
             # Calculate skymap limits
             skymap_nbins = int(skymap_size / skymap_bin_size)
-            sky_dec_min, sky_dec_max = objdec - skymap_size / 2., objdec + skymap_size / 2.
-            objcosdec = np.cos(objdec * np.pi / 180.)
-            sky_ra_min, sky_ra_max = objra - skymap_size / 2. / objcosdec, objra + skymap_size / 2. / objcosdec
+            sky_dec_min, sky_dec_max = skycendec - skymap_size / 2., skycendec + skymap_size / 2.
+            objcosdec = np.cos(skycendec * np.pi / 180.)
+            sky_ra_min, sky_ra_max = skycenra - skymap_size / 2. / objcosdec, skycenra + skymap_size / 2. / objcosdec
 
             logging.debug('skymap_nbins = {0}'.format(skymap_nbins))
             logging.debug('sky_dec_min, sky_dec_max = {0}, {1}'.format(sky_dec_min, sky_dec_max))
@@ -287,8 +294,8 @@ def create_sky_map(input_file_name,
             extent = [yedges[0], yedges[-1], xedges[0], xedges[-1]]
             sky_hist = sky[0]
 
-            sky_ex_reg = pf.get_exclusion_region_map(sky_hist, (sky_ra_min, sky_ra_max), (sky_dec_min, sky_dec_max),
-                                                     [pf.SkyCircle(pf.SkyCoord(objra, objdec), rexdeg)])
+            sky_ex_reg_map = pf.get_exclusion_region_map(sky_hist, (sky_ra_min, sky_ra_max), (sky_dec_min, sky_dec_max),
+                                                         sky_ex_reg)
 
         else :
             sky_hist += sky[0]
@@ -358,13 +365,13 @@ def create_sky_map(input_file_name,
     sky_overs, sky_overs_alpha = pf.oversample_sky_map(sky_hist, sc)
 
     logging.info('Calculating oversampled ring background map ..')
-    sky_bg_ring, sky_bg_ring_alpha = pf.oversample_sky_map(sky_hist, sr, sky_ex_reg)
+    sky_bg_ring, sky_bg_ring_alpha = pf.oversample_sky_map(sky_hist, sr, sky_ex_reg_map)
 
     logging.info('Calculating oversampled event acceptance map ..')
     acc_overs, acc_overs_alpha = pf.oversample_sky_map(acc_hist, sc)
 
     logging.info('Calculating oversampled ring background acceptance map ..')
-    acc_bg_overs, acc_bg_overs_alpha = pf.oversample_sky_map(acc_hist, sr, sky_ex_reg)
+    acc_bg_overs, acc_bg_overs_alpha = pf.oversample_sky_map(acc_hist, sr, sky_ex_reg_map)
 
     rng_alpha = acc_hist / acc_bg_overs # camera acceptance
     rng_exc = sky_hist - sky_bg_ring * rng_alpha
@@ -644,11 +651,11 @@ def create_sky_map(input_file_name,
         ax = plt.subplot(236)
 
         sign_hist_r_max = 2.
-        sky_ex_reg = pf.get_exclusion_region_map(sky_hist, (sky_ra_min, sky_ra_max), (sky_dec_min, sky_dec_max),
-                                                 [pf.SkyCircle(pf.SkyCoord(objra, objdec), sign_hist_r_max)])
-        n, bins, patches = plt.hist(rng_sig_overs[sky_ex_reg == 0.].flatten(), bins=100, range=(-8., 8.),
-                                histtype='stepfilled', color='SkyBlue', log=True)
-        #n, bins, patches = plt.hist(rng_sig[sky_ex_reg == 0.].flatten(), bins=100, range=(-8., 8.),
+        sky_ex_reg_map = pf.get_exclusion_region_map(sky_hist, (sky_ra_min, sky_ra_max), (sky_dec_min, sky_dec_max),
+                                                     [pf.SkyCircle(pf.SkyCoord(skycenra, skycendec), sign_hist_r_max)])
+        n, bins, patches = plt.hist(rng_sig_overs[sky_ex_reg_map == 0.].flatten(), bins=100, range=(-8., 8.),
+                                    histtype='stepfilled', color='SkyBlue', log=True)
+        #n, bins, patches = plt.hist(rng_sig[sky_ex_reg_map == 0.].flatten(), bins=100, range=(-8., 8.),
         #                            histtype='stepfilled', color='SkyBlue', log=True)
 
         x = np.linspace(-5., 8., 100)
