@@ -435,16 +435,22 @@ def create_sky_map(input_file_name,
 
         if template_background :
             outfile_base_name = 'skymap_template'
-            outfile_extensions = ['_background.fits', '_acceptance.fits', '_background_over.fits',
-                                  '_significance_over.fits', '_excess_over.fits', '_alpha_over.fits']
-            outfile_base_name = pf.unique_base_file_name(outfile_base_name, outfile_extensions)
+            outfile_data = {
+                '_bg.fits': tpl_had_hist,
+                '_ac.fits': tpl_acc_hist,
+                '_bg_overs.fits': tpl_had_overs,
+                '_si_overs.fits': tpl_sig_overs,
+                '_ex_overs.fits': tpl_exc_overs,
+                '_al_overs.fits': tpl_alpha_overs,
+                #'_si.fits': rng_sig,
+                #'_ex.fits': rng_exc,
+                #'_al.fits': rng_alpha
+                }
+            outfile_base_name = pf.unique_base_file_name(outfile_base_name, outfile_data.keys())
 
-            pf.map_to_primaryhdu(tpl_had_hist, rarange, decrange).writeto(outfile_base_name + outfile_extensions[0])
-            pf.map_to_primaryhdu(tpl_acc_hist, rarange, decrange).writeto(outfile_base_name + outfile_extensions[1])
-            pf.map_to_primaryhdu(tpl_had_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[2])
-            pf.map_to_primaryhdu(tpl_sig_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[3])
-            pf.map_to_primaryhdu(tpl_exc_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[4])
-            pf.map_to_primaryhdu(tpl_alpha_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[5])
+            for ext, data in outfile_data.iteritems() :
+                pf.map_to_primaryhdu(data, rarange, decrange, author='PyFACT pfmap',
+                                     object_=object_, telescope=telescope).writeto(outfile_base_name + ext)
 
         logging.info('The output files can be found in {0}'.format(os.getcwd()))
 
