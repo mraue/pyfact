@@ -64,7 +64,7 @@ map
     def oversample_sky_map(sky, mask, exmap=None) :
 """
 
-__version__ = '0.0.4dev'
+__version__ = '0.1.0dev'
 __author__  = 'M. Raue // martin.raue@desy.de'
 
 # Import all functions/classes from the different files
