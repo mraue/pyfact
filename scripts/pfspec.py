@@ -242,35 +242,9 @@ def create_spectrum(input_file_names,
         tbdata = newtable.data[mgit]
 
         #---------------------------------------------------------------------------
-        # Select events
+        # Select signal and background events
 
-        # Select events with at least one tel above the required image amplitude/size (here iamin p.e.)
-        # This needs to be changed for the new TELEVENT table scheme
-        #iamin = 80.
-        #iamask = (tbdata.field('HIL_TEL_SIZE')[:,0] > iamin) \
-        #    + (tbdata.field('HIL_TEL_SIZE')[:,1] > iamin) \
-        #    + (tbdata.field('HIL_TEL_SIZE')[:,2] > iamin) \
-        #    + (tbdata.field('HIL_TEL_SIZE')[:,3] > iamin)
-
-        # Select events between emin & emax TeV
-        emin, emax = .01, 1000.
-        emask = (tbdata.field('ENERGY  ') > emin) \
-            * (tbdata.field('ENERGY  ') < emax)
-
-        # Only use events with < 4 deg camera distance
-        camdmask = tbdata.field('XCAMDIST') < 4.
-
-        # Combine cuts for photons
-        #phomask = (tbdata.field('HIL_MSW ') < 1.1) * emask * camdmask
-        phomask = (tbdata.field('HIL_MSW ') > -2.) * (tbdata.field('HIL_MSW ') < .9) * (tbdata.field('HIL_MSL ') > -2.)  * (tbdata.field('HIL_MSL ') < 2.) * emask * camdmask
-        hadmask = (tbdata.field('HIL_MSW ') > 1.3) * (tbdata.field('HIL_MSW ') < 10.) * emask * camdmask
-        
-        # Most important cut for the acceptance calculation: exclude source region
-        exmask = np.invert(np.sqrt(((tbdata.field('RA      ') - objra) / np.cos(objdec * np.pi / 180.)) ** 2.
-                                   + (tbdata.field('DEC     ') - objdec) ** 2.) < rexdeg)
-
-        photbdata = tbdata[phomask]
-        #hadtbdata = tbdata[hadmask * exmask]
+        photbdata = tbdata
 
         on_run = photbdata[photbdata.field('XTHETA') < analysis_radius]
         off_run = photbdata[((photbdata.field('XCAMDIST') < obj_cam_dist + analysis_radius)
@@ -286,13 +260,6 @@ def create_spectrum(input_file_names,
                                            - (obj_cam_dist - analysis_radius) ** 2.
                                            - cci_f(obj_cam_dist + analysis_radius, rexdeg, obj_cam_dist) / np.pi
                                            + cci_f(obj_cam_dist - analysis_radius, rexdeg, obj_cam_dist) / np.pi)
-
-        #logging.debug('{0} {1} {2} {3}'.format((obj_cam_dist + analysis_radius) ** 2.,
-        #                                       (obj_cam_dist - analysis_radius) ** 2.,
-        #                                       cci_f(obj_cam_dist + analysis_radius, rexdeg, obj_cam_dist) / np.pi,
-        #                                       cci_f(obj_cam_dist - analysis_radius, rexdeg, obj_cam_dist) / np.pi
-        #                                       )
-        #              )
 
         spec_off_run_hist, ebins = np.histogram(np.log10(off_run.field('ENERGY')), bins=spec_nbins, range=(spec_emin, spec_emax))
         spec_off_hist += spec_off_run_hist
