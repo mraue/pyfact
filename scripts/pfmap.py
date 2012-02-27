@@ -230,6 +230,8 @@ def create_sky_map(input_file_name,
         exmask = np.invert(exmask)
 
         photbdata = tbdata[exmask * mgit]
+        if len(photbdata) < 10 :
+            logging.warning('Less then 10 events found in file {0} after exclusion region cuts'.format(file_name))
 
         hadtbdata = None
         if template_background :
@@ -274,6 +276,8 @@ def create_sky_map(input_file_name,
         photbdata = tbdata[mgit]
         if template_background :
             hadtbdata = tpl_tbdata[tpl_mgit]
+        if len(photbdata) < 10 :
+            logging.warning('Less then 10 events found in file {0} after GTI cut.'.format(file_name))
 
         tpl_acc_cor_use_interp = True
         tpl_acc_f, tpl_acc = None, None

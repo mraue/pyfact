@@ -141,12 +141,18 @@ def create_spectrum(input_file_names,
     try :
         f = pyfits.open(input_file_names[0])
         f.close()
-        file_list = input_file_names
+        file_list = [input_file_names]
     except :
         logging.info('Reading files from batchfile {0}'.format(input_file_names[0]))
         file_list = np.loadtxt(input_file_names[0], dtype='S')
         if len(file_list.shape) == 1 :
             file_list = np.array([file_list])
+
+    # Sanity checks on input file(s)
+    if len(file_list) < 1 :
+        raise RuntimeError('No entries in bankfile')
+    if len(file_list[0]) != 3 :
+        raise RuntimeError('Bankfile must have three columns (data/arf/rmf)')
 
     # Shortcuts for commonly used functions
     cci_f, cci_a = pf.circle_circle_intersection_f, pf.circle_circle_intersection_a
