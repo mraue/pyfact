@@ -75,26 +75,47 @@ class Range :
 class ChisquareFitter :
     """
     Convenience class to perform Chi^2 fits.
-    """
 
-    fitfunc = None
-    """Fitfunction"""
-    results = None
-    """Fit results from scipy.optimize.leastsq()"""
-    chi_arr = None
-    """Array with the final chi values"""
-    chi2    = None
-    """Summed Chi^2"""
-    dof     = None
-    """Degrees of freedom"""
-    prob    = None
-    """Probability of the fit"""
+    Attributes
+    ----------
+
+    fitfunc : function
+        Fitfunction
+    results : array
+        Fit results from scipy.optimize.leastsq()
+    chi_arr : float array
+        Array with the final chi values
+    chi2 : float
+        Summed Chi^2
+    dof : float
+        Degrees of freedom
+    prob : float
+        Probability of the fit
+
+    Parameters
+    ----------
+
+    fitfunc : function
+        Fit function.
+    """
 
     def __init__(self, fitfunc) :
         self.fitfunc = fitfunc
+        self.results = None
+
 
     def fit_data(self, p0, x, y, y_err) :
-        """Perform actual fit."""
+        """
+        Perform actual fit.
+
+        Parameters
+        ----------
+
+        p0 : float array
+            Start parameters
+        x, y, y_err : float arrays
+            Data to be fitted.
+        """
         self.results = scipy.optimize.leastsq(self.chi_func, p0, args=(x, y, y_err), full_output=True)
         if self.results[4] :
             self.chi_arr = self.chi_func(self.results[0], x, y, y_err)
@@ -177,11 +198,11 @@ def circle_circle_intersection_a(R, r, d) :
 
     Parameters
     ----------
-     R : array
+    R : array
         Radius of the first circle.
-     r : array
+    r : array
         Radius of the second circle.
-     d : array
+    d : array
         Distance of the two circle (center to center).
 
     Returns
@@ -217,11 +238,11 @@ def circle_circle_intersection_f(R, r, d) :
 
     Parameters
     ----------
-     R : float
+    R : float
         Radius of the first circle.
-     r : float
+    r : float
         Radius of the second circle.
-     d : float
+    d : float
         Distance of the two circle (center to center).
 
     Returns
@@ -251,7 +272,6 @@ def unique_base_file_name(name, extension=None) :
 
     Parameters
     ----------
-    
     name : str
         Base file name.
     extension : str/array, optional
