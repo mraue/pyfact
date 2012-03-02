@@ -4,17 +4,33 @@
    contain the root `toctree` directive.
 
 PyFACT - Python and FITS Analysis for Cherenkov Telescopes
-========================================
+============================================================
 
-Contents:
+Index
+--------------
 
 .. toctree::
    :maxdepth: 2
 
+   requirements
+   installation
    tutorial
    tools
    fits
    map
+
+
+Overview
+----------------
+
+PyFACT is a collection of python tools for the analysis of Imaging Atmospheric Cherenkov Telescope (IACT) data in the eventlist FITS format. Currently it is developed and maintained by Martin Raue (martin.raue@desy.de).
+
+PyFACT is not (yet) a full fledged analysis package. It is collection of tools, which allow for a quick look into the data and which interface with existing tools like xspec or sherpa.
+
+PyFACT can be downloaded from github: https://github.com/mraue/pyfact
+
+Sub-modules
+-----------------
 
 The module is splitted in several sub-modules according to the functionality for better maintance.
 
