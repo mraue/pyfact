@@ -192,6 +192,10 @@ def create_spectrum(input_file_names,
         pntra, pntdec = ex1hdr['RA_PNT'], ex1hdr['DEC_PNT']
         obj_cam_dist = pf.SkyCoord(objra, objdec).dist(pf.SkyCoord(pntra, pntdec))
 
+        # If no exclusion regions are given, use the object position from the first run
+        if sky_ex_reg == None :
+            sky_ex_reg = [pf.SkyCircle(pf.SkyCoord(objra, objdec), rexdeg)]
+
         exposure_run = ex1hdr['LIVETIME']
         exposure += exposure_run
 

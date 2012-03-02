@@ -116,6 +116,7 @@ class SkyCircle:
 
 #---------------------------------------------------------------------------
 def skycircle_from_str(cstr) :
+    """Creates SkyCircle from circle region string."""
     x, y, r = eval(cstr.upper().replace('CIRCLE', ''))
     return SkyCircle(SkyCoord(x, y), r)
 
@@ -190,6 +191,12 @@ def get_sky_mask_circle(r, bin_size) :
         Radius of the circle.
     bin_size : float
         Physical size of the bin, same units as rmin, rmax.
+
+    Returns
+    -------
+    sky_mask : 2d numpy array
+        Returns a 2d numpy histogram with (2. * r / bin_size) bins per axis
+        where a circle of radius has bins filled 1.s, all other bins are 0.
     """
     nbins = int(np.ceil(2. * r / bin_size))
     sky_x = np.ones((nbins, nbins)) *  np.linspace(bin_size / 2., 2. * r - bin_size / 2., nbins)
@@ -212,6 +219,13 @@ def get_sky_mask_ring(rmin, rmax, bin_size) :
         Outer radius of the ring.
     bin_size : float
         Physical size of the bin, same units as rmin, rmax.
+
+    Returns
+    -------
+    sky_mask : 2d numpy array
+        Returns a 2d numpy histogram with (2. * rmax / bin_size) bins per axis
+        filled with a ring with inner radius rmin and outer radius rmax of 1.,
+        all other bins are 0..
     """
     nbins = int(np.ceil(2. * rmax / bin_size))
     sky_x = np.ones((nbins, nbins)) *  np.linspace(bin_size / 2., 2. * rmax - bin_size / 2., nbins)

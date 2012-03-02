@@ -25,49 +25,34 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
-PyFACT
-Python & FITS based Analysis for Cherenkov Telescopes
+==============================================================
+PyFACT - Python & FITS based Analysis for Cherenkov Telescopes
+==============================================================
 
 The module is splitted in several files according to the functionality for better maintance.
 
-tools - general tools and helpers
-fits - functions to deal with input/output in fits format
-map - functions to deal with the creation of skymaps
+* tools - general tools and helpers
+* fits - functions to deal with input/output in fits format
+* map - functions to deal with the creation of skymaps
 
-tools
-    class Range :
-    class ChisquareFitter :
-    def get_li_ma_sign(non, noff, alpha) :
-    def get_nice_time(t, sep='') :
-    def circle_circle_intersection(R, r, d) :
-    def unique_base_file_name(name, extension=None) :
-    def date_to_mjd(d) :
+.. automodule:: pyfact.tools
+   :members:
+   :undoc-members:
 
-fits
-    def map_to_primaryhdu(map, rarange, decrange) :
-    def np_to_arf(ea, erange, telescope='DUMMY', instrument='DUMMY', filter='NONE') :
-    def np_to_rmf(rm, erange, ebounds, minprob,
-                  telescope='DUMMY', instrument='DUMMY', filter='NONE') :
-    def rmf_to_np(hdulist) :
-    def np_to_pha(channel, counts, exposure, dstart, dstop, dbase=None,
-                  stat_err=None, quality=None, syserr=None,
-                  obj_ra=0., obj_dec=0., obj_name='DUMMY', creator='DUMMY',
-                  version='v0.0.0', telescope='DUMMY', instrument='DUMMY', filter_='NONE') :
+.. automodule:: pyfact.fits
+   :members:
+   :undoc-members:
 
-map
-    class SkyCoord:
-    class SkyCircle:
-    def get_cam_acc(camdist, rmax=4., nbins=0, exreg=None, fit=False) :
-    def get_sky_mask_circle(r, bin_size) :
-    def get_sky_mask_ring(rmin, rmax, bin_size) :
-    def get_exclusion_region_map(map, rarange, decrange, exreg) :
-    def oversample_sky_map(sky, mask, exmap=None) :
+.. automodule:: pyfact.map
+   :members:
+   :undoc-members:
+
 """
 
 __version__ = '0.1.0dev'
 __author__  = 'M. Raue // martin.raue@desy.de'
 
 # Import all functions/classes from the different files
-from tools import *
-from fits import *
-from map import *
+from .tools import *
+from .fits import *
+from .map import *

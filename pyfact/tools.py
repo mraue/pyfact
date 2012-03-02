@@ -77,17 +77,24 @@ class ChisquareFitter :
     Convenience class to perform Chi^2 fits.
     """
 
-    fitfunc = None # Fitfunction
-    results = None # Fit results from scipy.optimize.leastsq()
-    chi_arr = None # Array with the final chi values
-    chi2    = None # Summed Chi^2
-    dof     = None # Degrees of freedom
-    prob    = None # Probability of the fit
+    fitfunc = None
+    """Fitfunction"""
+    results = None
+    """Fit results from scipy.optimize.leastsq()"""
+    chi_arr = None
+    """Array with the final chi values"""
+    chi2    = None
+    """Summed Chi^2"""
+    dof     = None
+    """Degrees of freedom"""
+    prob    = None
+    """Probability of the fit"""
 
     def __init__(self, fitfunc) :
         self.fitfunc = fitfunc
 
     def fit_data(self, p0, x, y, y_err) :
+        """Perform actual fit."""
         self.results = scipy.optimize.leastsq(self.chi_func, p0, args=(x, y, y_err), full_output=True)
         if self.results[4] :
             self.chi_arr = self.chi_func(self.results[0], x, y, y_err)
@@ -98,9 +105,11 @@ class ChisquareFitter :
         return self.results[4]
 
     def chi_func(self, p, x, y, err):
+        """Returns Chi"""
         return (self.fitfunc(p, x) - y) / err # Distance to the target function
 
     def print_results(self) :
+        """Prints out results to the command line using the logging module."""
         if self.results == None :
             logging.warning('No fit results to report since no fit has been performed yet')
             return

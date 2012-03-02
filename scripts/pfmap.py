@@ -48,7 +48,7 @@ except :
     has_matplotlib = False
 
 # Add script parent directory to python search path to get access to the pyfact package
-sys.path.append(os.path.abspath(sys.path[0].rsplit('/', 1)[0]))
+sys.path.append(os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + '/..'))
 import pyfact as pf
 
 #===========================================================================
@@ -143,6 +143,7 @@ def create_sky_map(input_file_name,
             logging.warning('Different number of signal and template background files. Switching off template background analysis.')
             template_background = None
 
+    # Main loop over input files
     for i, file_name in enumerate(file_list) :
 
         logging.info('Processing file {0}'.format(file_name))

@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to PyFACT's documentation!
-==================================
+PyFACT - Python and FITS Analysis for Cherenkov Telescopes
+========================================
 
 Contents:
 
@@ -16,14 +16,14 @@ Contents:
    fits
    map
 
-The module is splitted in several files according to the functionality for better maintance.
+The module is splitted in several sub-modules according to the functionality for better maintance.
 
 :doc:`tools`
-  general tools and helpers
+  General tools and helpers
 :doc:`fits`
-  functions to deal with input/output in fits format
+  Functions to deal with input/output in fits format
 :doc:`map`
-  functions to deal with the creation of skymaps
+  Functions to deal with the creation of skymaps
 
 Indices and tables
 ==================
