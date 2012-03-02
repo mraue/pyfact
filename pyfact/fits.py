@@ -392,7 +392,7 @@ def rmf_to_np(hdulist) :
     Converts an RMF FITS hdulist into numpy arrays
 
     Parameters
-    -------
+    ----------
     hdulist : FITS hdulist
         Primary extension should be the MATRIX, secondary extension the EBOUNDS
 
