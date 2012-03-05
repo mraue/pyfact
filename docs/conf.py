@@ -17,6 +17,8 @@ import sys, os
 sys.path.append(os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + '/..'))
 #sys.path.append(os.path.abspath('/Users/mraue/Stuff/work/cta/2011/fits/pyfact-trunk'))
 
+import pyfact.docs.np
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -36,7 +38,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
-    'numpydoc'
+    'pyfact.docs.np.numpydoc'
     ]
 
 # Don't show summaries of the members in each class along with the
