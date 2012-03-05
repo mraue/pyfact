@@ -3,8 +3,6 @@
 pyfact.fits
 ============
 
-Contents:
-
 .. toctree::
    :maxdepth: 2
 

@@ -3,8 +3,6 @@
 pyfact.tools
 ============
 
-Contents:
-
 .. toctree::
    :maxdepth: 2
 

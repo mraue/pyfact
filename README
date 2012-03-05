@@ -2,11 +2,11 @@
 |  [Py]thon +                                     |
 |  [F]ITS                                         |
 |  [A]nalysis for                     < v0.1.0 >  |
-|  [C]herenkov                      Feb 27, 2012  |
+|  [C]herenkov                      Mar XX, 2012  |
 |  [T]elescopes                                   |
 +-------------------------------------------------+
 
-Copyright (c) 2011-2012, Martin Raue
+Copyright (c) 2011-2012, the PyFACT developers
 All rights reserved.
 
 PyFACT is distributed under the Modified BSD License (see below).
@@ -16,7 +16,8 @@ INTRODUCTION
 
 PyFACT is a collection of python tools for the analysis of Imaging
 Atmospheric Cherenkov Telescope (IACT) data in FITS format. For the
-moment it is developed and maintained by Martin Raue (martin.raue@desy.de).
+moment it is developed and maintained by Martin Raue (martin.raue@desy.de)
+and Christoph Deil (christoph.deil@mpi-hd.mpg.de).
 
 ============
 REQUIREMENTS
@@ -33,7 +34,6 @@ The module is written for Python 2.6++ and requires the following python package
   http://www.stsci.edu/resources/software_hardware/pyfits/
 
 The data needs to be in CTA FITS format v1.0.0 or higher.
-<download link>
 
 Optional, for plotting:
 
@@ -44,6 +44,15 @@ Optional, for plotting:
 INSTALLATION
 
 No installation of the package is required. Simply untar the archive and you are good to go.
+
+To build the documentation the sphinx package is required:
+$ cd docs/
+$ make html (latex ...)
+
+The documentation can then be found in the docs/_build/ directory.
+
+The documentation is also available online
+http://pyfact.rtfd.org
 
 =====
 USAGE
@@ -65,17 +74,12 @@ In [0]: %run ./scripts/pfmap.py
 
 The scripts come with a builtin help text, which is displayed when the scripts are called without any argument or with the -h/--help option:
 
-./scripts/pfmap.py
-./scripts/pfmap.py -h
-./scripts/pfmap.py --help
+$ ./scripts/pfmap.py
+$ ./scripts/pfmap.py -h
+$ ./scripts/pfmap.py --help
 
--------
-EXAMPLE
-
-===============
-EXAMPLE SCRIPTS
-
-In the examples/ folder example scripts can be found illustrating how to implement standard tasks e.g. creating RMF and ARF files from numpy arrays.
+Please refer to the full documentation for more details. It can be found online:
+http://pyfact.rtfd.org
 
 ==================
 FEEDBACK & SUPPORT
@@ -101,7 +105,7 @@ modification, are permitted provided that the following conditions are met:
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL MARTIN RAUE BE LIABLE FOR ANY
+DISCLAIMED. IN NO EVENT SHALL THE PYFACT DEVELOPERS BE LIABLE FOR ANY
 DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
