@@ -20,7 +20,7 @@ sys.path.append(os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + '/.
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('.'))
 
 # -- General configuration -----------------------------------------------------
 
@@ -36,7 +36,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
-    'pyfact.docs.np.numpydoc'
+    'npdoc'
     ]
 
 # Don't show summaries of the members in each class along with the
