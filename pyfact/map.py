@@ -121,7 +121,7 @@ def skycircle_from_str(cstr) :
     return SkyCircle(SkyCoord(x, y), r)
 
 #---------------------------------------------------------------------------
-def get_cam_acc(camdist, rmax=4., nbins=0, exreg=None, fit=False, fitfunc=None, p0=None) :
+def get_cam_acc(camdist, rmax=4., nbins=None, exreg=None, fit=False, fitfunc=None, p0=None) :
     """
     Calculates the camera acceptance histogram from a given list with camera distances (event list).
 
@@ -163,8 +163,10 @@ def get_cam_acc(camdist, rmax=4., nbins=0, exreg=None, fit=False, fitfunc=None, 
         #fitfunc = lambda p, x: p[0] * x ** p[1] * (1. + (x / p[2]) ** p[3]) ** ((p[1] + p[4]) / p[3])
         if not fitfunc :
             fitfunc = lambda p, x: p[0] * x ** 0. * (1. + (x / p[1]) ** p[2]) ** ((0. + p[3]) / p[2])
+            #fitfunc = lambda p, x: p[0] * x ** 0. * (1. + (x / p[1]) ** p[2]) ** ((0. + p[3]) / p[2]) + p[4] / (np.exp(p[5] * (x - p[6])) + 1.)            
         if not p0 :
             p0 = [n[0] / r_a[0], 1.5, 3., -5.] # Initial guess for the parameters
+            #p0 = [.5 * n[0] / r_a[0], 1.5, 3., -5., .5 * n[0] / r_a[0], 100., .5] # Initial guess for the parameters            
         fitter = pf.ChisquareFitter(fitfunc)
         m = (n > 0.) * (nerr > 0.) * (r_a != 0.) * ((1. - ex_a) != 0.)
         if np.sum(m) <= len(p0) :
