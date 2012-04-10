@@ -184,7 +184,7 @@ def plot_skymap(event_map, excess_map, sign_map, bg_map, alpha_map, titlestr,
     plt.plot(x, gauss_func([float(n.max()), 0., 1.], x), label='Gauss ($\sigma=1.$, mean=0.)')
 
     plt.xlabel('Significance R < {0}'.format(sign_hist_r_max))
-    plt.title('Ring BG', fontsize='medium')
+    plt.title(titlestr, fontsize='medium')
 
     plt.ylim(1., n.max() * 5.)
     plt.legend(loc='upper left', prop={'size': 'small'})
