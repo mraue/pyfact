@@ -15,6 +15,7 @@ Index
    requirements
    installation
    tutorial
+   development
    tools
    fits
    map
