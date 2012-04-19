@@ -18,6 +18,12 @@ The syntax follows the numpy documentation style as described in :doc:`code-doc_
 The npdoc sphinx extension needed to parse the inline comments comes bundled with PyFACT (docs/npdoc).
 
 ---------------------------------
+Testing
+---------------------------------
+
+Unit testing is done via nose (http://readthedocs.org/docs/nose/en/latest/).
+
+---------------------------------
 Branching model
 ---------------------------------
 
