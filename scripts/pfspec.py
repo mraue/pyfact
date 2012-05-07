@@ -83,7 +83,7 @@ def create_spectrum(input_file_names,
     # Loop over the file list, calculate quantities, & fill histograms
 
     # Exclusion radius [this should be generalized in future versions]
-    rexdeg = .35
+    rexdeg = .3
     logging.warning('pfspec is currently using a single exclusion region for background extraction set on the analysis position (r = {0})'.format(rexdeg))
     logging.warning('This should be improved in future versions (tm).')
 
@@ -120,8 +120,10 @@ def create_spectrum(input_file_names,
         spec_emin = np.log10(ebounds[0])
         spec_emax = np.log10(ebounds[-1])
         arf_m_erange = erange
-        instrument = f[1].header['INSTRUME']
-        telescope = f[1].header['TELESCOP']
+        if 'INSTRUME' in f[1].header.keys() :
+            instrument = f[1].header['INSTRUME']
+        if 'TELESCOP' in f[1].header.keys() :
+            telescope = f[1].header['TELESCOP']
         
     spec_on_hist, spec_off_hist, spec_off_cor_hist = np.zeros(spec_nbins), np.zeros(spec_nbins), np.zeros(spec_nbins)
     spec_hist_ebounds = np.linspace(spec_emin, spec_emax, spec_nbins + 1)

@@ -1,8 +1,8 @@
 +-------------------------------------------------+
 |  [Py]thon +                                     |
 |  [F]ITS                                         |
-|  [A]nalysis for                     < v0.1.0 >  |
-|  [C]herenkov                      Mar XX, 2012  |
+|  [A]nalysis for                     < v0.2.0 >  |
+|  [C]herenkov                      May 07, 2012  |
 |  [T]elescopes                                   |
 +-------------------------------------------------+
 
@@ -15,14 +15,15 @@ PyFACT is distributed under the Modified BSD License (see below).
 INTRODUCTION
 
 PyFACT is a collection of python tools for the analysis of Imaging
-Atmospheric Cherenkov Telescope (IACT) data in FITS format. For the
-moment it is developed and maintained by Martin Raue (martin.raue@desy.de)
-and Christoph Deil (christoph.deil@mpi-hd.mpg.de).
+Atmospheric Cherenkov Telescope (IACT) data in FITS format. PyFACT is developed
+and maintained by Martin Raue (martin.raue@desy.de) with contributions
+by Christoph Deil (christoph.deil@mpi-hd.mpg.de).
 
 ============
 REQUIREMENTS
 
-The module is written for Python 2.6++ and requires the following python packages to be installed:
+The module is written for Python 2.6++ and requires the following python
+packages to be installed:
 
 * numpy 1.5.1 or higher
   http://numpy.scipy.org/

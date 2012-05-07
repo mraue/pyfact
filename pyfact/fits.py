@@ -501,7 +501,7 @@ def np_to_pha(channel, counts, exposure, dstart, dstop, dbase=None, stat_err=Non
 
     tbhdu = pyfits.new_table(cols)
 
-    tbhdu.header.update('EXTNAME ', 'SPECTRUM'          , 'name of this binary table extension')
+    tbhdu.header.update('EXTNAME ', 'SPECTRUM', 'name of this binary table extension')
     tbhdu.header.update('TELESCOP', telescope, 'Telescope (mission) name')
     tbhdu.header.update('INSTRUME', instrument, 'Instrument name')
     tbhdu.header.update('FILTER  ', filter_, 'Instrument filter in use')

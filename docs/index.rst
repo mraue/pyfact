@@ -26,9 +26,9 @@ Overview
 
 PyFACT is a collection of python tools for the analysis of Imaging
 Atmospheric Cherenkov Telescope (IACT) data in the eventlist FITS
-format. Currently it is developed and maintained by Martin Raue
-(martin.raue@desy.de) and Christoph Deil
-(christoph.deil@mpi-hd.mpg.de) and distributed under the modified BSD
+format. PyFACY is developed and maintained by Martin Raue
+(martin.raue@desy.de) with contributions by Christoph Deil
+(christoph.deil@mpi-hd.mpg.de) and is distributed under the modified BSD
 license (see LICENSE).
 
 PyFACT is not (yet) a full fledged analysis package. It is collection of tools, which allow for a quick look into the data and which interface with existing tools like xspec or sherpa.
