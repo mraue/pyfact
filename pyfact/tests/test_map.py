@@ -24,35 +24,29 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"""
-==============================================================
-PyFACT - Python & FITS based Analysis for Cherenkov Telescopes
-==============================================================
+#===========================================================================
+# Imports
 
-The module is splitted in several files according to the functionality for better maintance.
+from .. import map
 
-* tools - general tools and helpers
-* fits - functions to deal with input/output in fits format
-* map - functions to deal with the creation of skymaps
+#===========================================================================
+# Main
 
-.. automodule:: pyfact.tools
-   :members:
-   :undoc-members:
+"""Unit tests for nosetest (http://nose.readthedocs.org/)"""
 
-.. automodule:: pyfact.fits
-   :members:
-   :undoc-members:
+class TestSkyCoord() :
+    """Test SkyCoord class"""
 
-.. automodule:: pyfact.map
-   :members:
-   :undoc-members:
+    def test_init(self) :
+        sc = map.SkyCoord(0., 0.)
+        assert (sc.ra == 0.)
+        assert (sc.dec == 0.)
 
-"""
+    def test_dist(self) :
+        sc = map.SkyCoord(0., 0.)
+        assert (sc.dist(sc) == 0.)
+        sc2 = map.SkyCoord(0., 1.)
+        assert (sc.dist(sc2) == 1.)
 
-__version__ = '0.2.0'
-__author__  = 'M. Raue // martin.raue@desy.de'
-
-# Import all functions/classes from the different files
-from .tools import *
-from .fits import *
-from .map import *
+#===========================================================================
+#===========================================================================

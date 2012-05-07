@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 #===========================================================================
-# Copyright (c) 2011, Martin Raue
+# Copyright (c) 2011-2012, the PyFACT developers
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -18,7 +18,7 @@
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL MARTIN RAUE BE LIABLE FOR ANY
+# DISCLAIMED. IN NO EVENT SHALL THE PYFACT DEVELOPERS BE LIABLE FOR ANY
 # DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
 # (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
 # LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -83,7 +83,7 @@ def create_spectrum(input_file_names,
     # Loop over the file list, calculate quantities, & fill histograms
 
     # Exclusion radius [this should be generalized in future versions]
-    rexdeg = .4
+    rexdeg = .3
     logging.warning('pfspec is currently using a single exclusion region for background extraction set on the analysis position (r = {0})'.format(rexdeg))
     logging.warning('This should be improved in future versions (tm).')
 
@@ -120,8 +120,10 @@ def create_spectrum(input_file_names,
         spec_emin = np.log10(ebounds[0])
         spec_emax = np.log10(ebounds[-1])
         arf_m_erange = erange
-        instrument = f[1].header['INSTRUME']
-        telescope = f[1].header['TELESCOP']
+        if 'INSTRUME' in f[1].header.keys() :
+            instrument = f[1].header['INSTRUME']
+        if 'TELESCOP' in f[1].header.keys() :
+            telescope = f[1].header['TELESCOP']
         
     spec_on_hist, spec_off_hist, spec_off_cor_hist = np.zeros(spec_nbins), np.zeros(spec_nbins), np.zeros(spec_nbins)
     spec_hist_ebounds = np.linspace(spec_emin, spec_emax, spec_nbins + 1)
@@ -141,12 +143,18 @@ def create_spectrum(input_file_names,
     try :
         f = pyfits.open(input_file_names[0])
         f.close()
-        file_list = input_file_names
+        file_list = [input_file_names]
     except :
         logging.info('Reading files from batchfile {0}'.format(input_file_names[0]))
         file_list = np.loadtxt(input_file_names[0], dtype='S')
         if len(file_list.shape) == 1 :
             file_list = np.array([file_list])
+
+    # Sanity checks on input file(s)
+    if len(file_list) < 1 :
+        raise RuntimeError('No entries in bankfile')
+    if len(file_list[0]) != 3 :
+        raise RuntimeError('Bankfile must have three columns (data/arf/rmf)')
 
     # Shortcuts for commonly used functions
     cci_f, cci_a = pf.circle_circle_intersection_f, pf.circle_circle_intersection_a
@@ -186,6 +194,10 @@ def create_spectrum(input_file_names,
         pntra, pntdec = ex1hdr['RA_PNT'], ex1hdr['DEC_PNT']
         obj_cam_dist = pf.SkyCoord(objra, objdec).dist(pf.SkyCoord(pntra, pntdec))
 
+        # If no exclusion regions are given, use the object position from the first run
+        if sky_ex_reg == None :
+            sky_ex_reg = [pf.SkyCircle(pf.SkyCoord(objra, objdec), rexdeg)]
+
         exposure_run = ex1hdr['LIVETIME']
         exposure += exposure_run
 
@@ -222,39 +234,23 @@ def create_spectrum(input_file_names,
         # Print new table columns
         #newtable.columns.info()
 
+        mgit = np.ones(len(tbdata), dtype=np.bool)
+        try :
+            # Note: according to the eventlist format document v1.0.0 Section 10
+            # "The times are expressed in the same units as in the EVENTS
+            # table (seconds since mission start in terresterial time)."
+            for gti in hdulist['GTI'].data :
+                mgit *= (tbdata.field('TIME') >= gti[0]) * (tbdata.field('TIME') <= gti[1])
+        except :
+            logging.warning('File does not contain a GTI extension')
+
         # New table data
-        tbdata = newtable.data
+        tbdata = newtable.data[mgit]
 
         #---------------------------------------------------------------------------
-        # Select events
+        # Select signal and background events
 
-        # Select events with at least one tel above the required image amplitude/size (here iamin p.e.)
-        # This needs to be changed for the new TELEVENT table scheme
-        #iamin = 80.
-        #iamask = (tbdata.field('HIL_TEL_SIZE')[:,0] > iamin) \
-        #    + (tbdata.field('HIL_TEL_SIZE')[:,1] > iamin) \
-        #    + (tbdata.field('HIL_TEL_SIZE')[:,2] > iamin) \
-        #    + (tbdata.field('HIL_TEL_SIZE')[:,3] > iamin)
-
-        # Select events between emin & emax TeV
-        emin, emax = .01, 1000.
-        emask = (tbdata.field('ENERGY  ') > emin) \
-            * (tbdata.field('ENERGY  ') < emax)
-
-        # Only use events with < 4 deg camera distance
-        camdmask = tbdata.field('XCAMDIST') < 4.
-
-        # Combine cuts for photons
-        #phomask = (tbdata.field('HIL_MSW ') < 1.1) * emask * camdmask
-        phomask = (tbdata.field('HIL_MSW ') > -2.) * (tbdata.field('HIL_MSW ') < .9) * (tbdata.field('HIL_MSL ') > -2.)  * (tbdata.field('HIL_MSL ') < 2.) * emask * camdmask
-        hadmask = (tbdata.field('HIL_MSW ') > 1.3) * (tbdata.field('HIL_MSW ') < 10.) * emask * camdmask
-        
-        # Most important cut for the acceptance calculation: exclude source region
-        exmask = np.invert(np.sqrt(((tbdata.field('RA      ') - objra) / np.cos(objdec * np.pi / 180.)) ** 2.
-                                   + (tbdata.field('DEC     ') - objdec) ** 2.) < rexdeg)
-
-        photbdata = tbdata[phomask]
-        #hadtbdata = tbdata[hadmask * exmask]
+        photbdata = tbdata
 
         on_run = photbdata[photbdata.field('XTHETA') < analysis_radius]
         off_run = photbdata[((photbdata.field('XCAMDIST') < obj_cam_dist + analysis_radius)
@@ -270,13 +266,6 @@ def create_spectrum(input_file_names,
                                            - (obj_cam_dist - analysis_radius) ** 2.
                                            - cci_f(obj_cam_dist + analysis_radius, rexdeg, obj_cam_dist) / np.pi
                                            + cci_f(obj_cam_dist - analysis_radius, rexdeg, obj_cam_dist) / np.pi)
-
-        #logging.debug('{0} {1} {2} {3}'.format((obj_cam_dist + analysis_radius) ** 2.,
-        #                                       (obj_cam_dist - analysis_radius) ** 2.,
-        #                                       cci_f(obj_cam_dist + analysis_radius, rexdeg, obj_cam_dist) / np.pi,
-        #                                       cci_f(obj_cam_dist - analysis_radius, rexdeg, obj_cam_dist) / np.pi
-        #                                       )
-        #              )
 
         spec_off_run_hist, ebins = np.histogram(np.log10(off_run.field('ENERGY')), bins=spec_nbins, range=(spec_emin, spec_emax))
         spec_off_hist += spec_off_run_hist
@@ -510,7 +499,7 @@ if __name__ == '__main__':
         dest='analysis_position',
         type='str',
         default=None,
-        help='Analysis position in RA and Dec (J2000) in degree. Format: \'(RA, Dec)\', including the quotation marks. If no center is given, the source position from the first input file is used.'
+        help='Analysis position in RA and Dec (J2000) in degrees. Format: \'(RA, Dec)\', including the quotation marks. If no center is given, the source position from the first input file is used.'
     )
     parser.add_option(
         '-r','--analysis-radius',

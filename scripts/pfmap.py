@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 #===========================================================================
-# Copyright (c) 2011, Martin Raue
+# Copyright (c) 2011-2012, the PyFACT developers
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -18,7 +18,7 @@
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL MARTIN RAUE BE LIABLE FOR ANY
+# DISCLAIMED. IN NO EVENT SHALL THE PYFACT DEVELOPERS BE LIABLE FOR ANY
 # DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
 # (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
 # LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -48,8 +48,146 @@ except :
     has_matplotlib = False
 
 # Add script parent directory to python search path to get access to the pyfact package
-sys.path.append(os.path.abspath(sys.path[0].rsplit('/', 1)[0]))
+sys.path.append(os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + '/..'))
 import pyfact as pf
+
+#===========================================================================
+# Functions
+
+#---------------------------------------------------------------------------
+def plot_skymap(event_map, excess_map, sign_map, bg_map, alpha_map, titlestr,
+                sky_ra_min, sky_ra_max, sky_dec_min, sky_dec_max, objcosdec, r_overs, extent,
+                skycenra, skycendec,
+                ring_bg_r_min = None, ring_bg_r_max = None, sign_hist_r_max = 2.) :
+
+    def set_title_and_axlabel(label) :
+        plt.xlabel('RA (deg)')
+        plt.ylabel('Dec (deg)')
+        plt.title(label, fontsize='medium')
+
+    plt_r_ra = sky_ra_min + .08 * (sky_ra_max - sky_ra_min) + r_overs / objcosdec
+    plt_r_dec = sky_dec_min + .08 * (sky_dec_max - sky_dec_min) + r_overs / objcosdec
+
+    cir_overs = matplotlib.patches.Circle(
+        (plt_r_ra, plt_r_dec),
+        radius=r_overs / objcosdec,
+        fill=True,
+        edgecolor='1.',
+        facecolor='1.',
+        alpha=.6
+        )
+
+    gauss_func = lambda p, x: p[0] * np.exp(- (x - p[1]) ** 2. / 2. / p[2] ** 2.)
+
+    #----------------------------------------
+    plt.figure(figsize=(13,7))
+
+    plt.subplots_adjust(wspace=.4, left=.07, right=.96, hspace=.25, top=.93)
+
+    #----------------------------------------
+    ax = plt.subplot(231) 
+
+    plt.imshow(event_map[::-1], extent=extent, interpolation='nearest')    
+
+    cb = plt.colorbar()
+    cb.set_label('Events')
+
+    set_title_and_axlabel('Events')
+
+    ax.add_patch(cir_overs)
+
+    #----------------------------------------
+    ax = plt.subplot(232) 
+
+    plt.imshow(excess_map[::-1], extent=extent, interpolation='nearest')
+
+    cb = plt.colorbar()
+    cb.set_label('Excess events')
+
+    set_title_and_axlabel(titlestr + ' - Excess')
+
+    #----------------------------------------
+    ax = plt.subplot(233) 
+
+    plt.imshow(sign_map[::-1], extent=extent, interpolation='nearest')
+
+    cb = plt.colorbar()
+    cb.set_label('Significance')
+
+    set_title_and_axlabel(titlestr + '- Significance')
+
+    #----------------------------------------
+    ax = plt.subplot(234) 
+
+    plt.imshow(bg_map[::-1], extent=extent, interpolation='nearest')
+
+    cb = plt.colorbar()
+    cb.set_label('Background events')
+
+    set_title_and_axlabel(titlestr + ' - Background')
+
+    if ring_bg_r_min and ring_bg_r_max :
+        plt_r_ra = sky_ra_min + .03 * (sky_ra_max - sky_ra_min) + ring_bg_r_max / objcosdec
+        plt_r_dec = sky_dec_min + .03 * (sky_dec_max - sky_dec_min) + ring_bg_r_max / objcosdec
+        # Plot ring background region
+        cir = matplotlib.patches.Circle(
+            (plt_r_ra, plt_r_dec),
+            radius=ring_bg_r_max / objcosdec,
+            fill=False,
+            edgecolor='1.',
+            facecolor='0.',
+            linestyle='solid',
+            linewidth=1.,
+            )
+        ax.add_patch(cir)
+
+        cir = matplotlib.patches.Circle(
+            (plt_r_ra, plt_r_dec),
+            radius=ring_bg_r_min / objcosdec,
+            fill=False,
+            edgecolor='1.',
+            facecolor='0.',
+            linestyle='solid',
+            linewidth=1.,
+            )
+        ax.add_patch(cir)
+
+    cir = matplotlib.patches.Circle(
+        (plt_r_ra, plt_r_dec),
+        radius=r_overs / objcosdec,
+        fill=True,
+        edgecolor='1.',
+        facecolor='1.',
+        alpha=.6
+        )
+    ax.add_patch(cir)
+
+    #----------------------------------------
+    ax = plt.subplot(235) 
+
+    plt.imshow(alpha_map[::-1], extent=extent, interpolation='nearest')
+
+    cb = plt.colorbar()
+    cb.set_label('Alpha')
+
+    set_title_and_axlabel(titlestr + ' - Alpha')
+
+    #----------------------------------------
+    ax = plt.subplot(236)
+
+    sky_ex_reg_map = pf.get_exclusion_region_map(event_map, (sky_ra_min, sky_ra_max), (sky_dec_min, sky_dec_max),
+                                                 [pf.SkyCircle(pf.SkyCoord(skycenra, skycendec), sign_hist_r_max)])
+    n, bins, patches = plt.hist(sign_map[sky_ex_reg_map == 0.].flatten(), bins=100, range=(-8., 8.),
+                                histtype='stepfilled', color='SkyBlue', log=True)
+
+    x = np.linspace(-5., 8., 100)
+    plt.plot(x, gauss_func([float(n.max()), 0., 1.], x), label='Gauss ($\sigma=1.$, mean=0.)')
+
+    plt.xlabel('Significance R < {0}'.format(sign_hist_r_max))
+    plt.title(titlestr, fontsize='medium')
+
+    plt.ylim(1., n.max() * 5.)
+    plt.legend(loc='upper left', prop={'size': 'small'})
 
 #===========================================================================
 # Main
@@ -58,10 +196,10 @@ def create_sky_map(input_file_name,
                    skymap_bin_size=0.05,
                    r_overs=.125,
                    ring_bg_radii=None,
-                   apply_cuts=True,
-                   template_background=True,
+                   template_background=None,
                    skymap_center=None,
                    write_output=False,
+                   fov_acceptance=False,
                    do_graphical_output=True,
                    loglevel='INFO') :
     # Time it!
@@ -86,13 +224,13 @@ def create_sky_map(input_file_name,
 
     # Skymap definition
     #skymap_size, skymap_bin_size = 6., 0.05
-    rexdeg = .25
+    rexdeg = .3
 
     # Intialize some variables
-    objra, objdec, pntra, pntdec = None, None, None, None
+    skycenra, skycendec, pntra, pntdec = None, None, None, None
     if skymap_center :
-        objra, objdec = eval(skymap_center)
-        logging.info('Skymap center: RA {0}, Dec {1}'.format(objra, objdec))
+        skycenra, skycendec = eval(skymap_center)
+        logging.info('Skymap center: RA {0}, Dec {1}'.format(skycenra, skycendec))
 
     ring_bg_r_min, ring_bg_r_max = .3, .7
     if ring_bg_radii :
@@ -109,7 +247,7 @@ def create_sky_map(input_file_name,
     skymap_nbins, sky_dec_min, sky_dec_max, objcosdec, sky_ra_min, sky_ra_max = 0, 0., 0., 0., 0., 0.
     sky_hist, acc_hist, extent = None, None, None
     tpl_had_hist, tpl_acc_hist = None, None
-    sky_ex_reg = None
+    sky_ex_reg, sky_ex_reg_map = None, None
 
     telescope, object_ = 'NONE', 'NONE'
 
@@ -120,94 +258,69 @@ def create_sky_map(input_file_name,
     # Read in input file, can be individual fits or bankfile
     logging.info('Opening input file ..')
 
-    # This list will hold the individual file names as strings
-    file_list = []
+    def get_filelist(input_file_name) :
+        # Check if we are dealing with a single file or a bankfile
+        # and create/read in the file list accordingly
+        try :
+            f = pyfits.open(input_file_name)
+            f.close()
+            file_list = [input_file_name]
+        except :
+            # We are dealing with a bankfile
+            logging.info('Reading files from bankfile {0}'.format(input_file_name))
+            file_list = np.loadtxt(input_file_name, dtype='S', usecols=[0])
+        return file_list
 
-    # Check if we are dealing with a single file or a bankfile
-    # and create/read in the file list accordingly
-    try :
-        f = pyfits.open(input_file_name)
-        f.close()
-        file_list = [input_file_name]
-    except :
-        # We are dealing with a bankfile
-        logging.info('Reading files from bankfile {0}'.format(input_file_name))
-        file_list = np.loadtxt(input_file_name, dtype='S', usecols=[0])
+    file_list = get_filelist(input_file_name)
 
-    for file_name in file_list :
+    tpl_file_list = None
+
+    # Read in template files
+    if template_background :
+        tpl_file_list = get_filelist(template_background)
+        if len(file_list) != len(tpl_file_list) :
+            logging.warning('Different number of signal and template background files. Switching off template background analysis.')
+            template_background = None
+
+    # Main loop over input files
+    for i, file_name in enumerate(file_list) :
 
         logging.info('Processing file {0}'.format(file_name))
 
-        # Open fits file
-        hdulist = pyfits.open(file_name)
+        def get_evl(file_name) :
+            # Open fits file
+            hdulist = pyfits.open(file_name)
+            # Access header of second extension
+            hdr = hdulist['EVENTS'].header
+            # Access data of first extension
+            tbdata = hdulist['EVENTS'].data
+            # Calculate some useful quantities and add them to the table
+            # Distance from the camera (FOV) center
+            camdist = np.sqrt(tbdata.field('DETX') ** 2. + tbdata.field('DETY') ** 2.)
+            camdist_col = pyfits.Column(name='XCAMDIST', format='1E', unit='deg', array=camdist)
+            # Add new columns to the table
+            coldefs_new = pyfits.ColDefs([camdist_col])
+            #coldefs_new = pyfits.ColDefs([camdist_col, detx_col, dety_col])
+            newtable = pyfits.new_table(hdulist[1].columns + coldefs_new)
+            # New table data
+            return hdulist, hdr, newtable.data
 
-        # Access header of second extension
-        ex1hdr = hdulist[1].header
+        hdulist, ex1hdr, tbdata = get_evl(file_name)
 
-        # Access data of first extension
-        tbdata = hdulist[1].data
-
-        #---------------------------------------------------------------------------
-        # Calculate some useful quantities and add them to the table
-
-        # Distance from the camera (FOV) center
-        camdist = np.sqrt(tbdata.field('DETX    ') ** 2. + tbdata.field('DETY    ') ** 2.)
-        camdist_col = pyfits.Column(name='XCAMDIST', format='1E', unit='deg', array=camdist)
-
-        ## cos(DEC)
-        #cosdec = np.cos(tbdata.field('DEC     ') * np.pi / 180.)
-        #cosdec_col = pyfits.Column(name='XCOSDEC', format='1E', array=cosdec)
-
-        # Add new columns to the table
-        #coldefs_new = pyfits.ColDefs([camdist_col, cosdec_col])
-        coldefs_new = pyfits.ColDefs([camdist_col])
-        newtable = pyfits.new_table(hdulist[1].columns + coldefs_new)
-
-        # New table data
-        tbdata = newtable.data
+        # Read in eventlist for template background
+        tpl_hdulist, tpl_tbdata = None, None
+        if template_background :
+            tpl_hdulist, tpl_hdr, tpl_tbdata = get_evl(tpl_file_list[i])
 
         #---------------------------------------------------------------------------
-        # Select events
+        # Intialize & GTI
 
-        # Select events with at least one tel above the required image amplitude/size (here iamin p.e.)
-        # This needs to be changed for the new TELEVENT table scheme
-        #iamin = 80.
-        #iamask = (tbdata.field('HIL_TEL_SIZE')[:,0] > iamin) \
-        #    + (tbdata.field('HIL_TEL_SIZE')[:,1] > iamin) \
-        #    + (tbdata.field('HIL_TEL_SIZE')[:,2] > iamin) \
-        #    + (tbdata.field('HIL_TEL_SIZE')[:,3] > iamin)
-
-        # Select events between emin & emax TeV
-        emin, emax = .1, 100.
-        emask = (tbdata.field('ENERGY  ') > emin) \
-            * (tbdata.field('ENERGY  ') < emax)
-
-        # Only use events with < 4 deg camera distance
-        camdmask = tbdata.field('XCAMDIST') < 4.
-
-        phomask = emask * camdmask
-        hadmask = emask * camdmask
-
-        if apply_cuts :
-            # Combine cuts for photons
-            #phomask = (tbdata.field('HIL_MSW ') < 1.1) * emask * camdmask
-            #  (HIL_MSW>-2.0&&HIL_MSW<0.9)&&(HIL_MSL>-2.0&&HIL_MSL<2.0)
-
-            if ('TEL' in ex1hdr) and (ex1hdr['TEL'].strip() == 'MAGIC') :
-                # MAGIC
-                phomask *= (tbdata.field('HADRONNESS') < .85) 
-                hadmask *= (tbdata.field('HADRONNESS') > .85) 
-            else :
-                # HESS
-                phomask = (tbdata.field('HIL_MSW ') > -2.) * (tbdata.field('HIL_MSW ') < .9) * (tbdata.field('HIL_MSL ') > -2.)  * (tbdata.field('HIL_MSL ') < 2.)
-                ##phomask = (tbdata.field('HIL_MSW ') > -2.)  * (tbdata.field('HIL_MSW ') < .9) * emask * camdmask
-                hadmask = (tbdata.field('HIL_MSW ') > 1.) * (tbdata.field('HIL_MSW ') < 10.)
-    
+        objra, objdec = ex1hdr['RA_OBJ'], ex1hdr['DEC_OBJ']
         if firstloop :
-            # If skymap center is not set, set it to the target position of the first run
-            if objra == None or objdec == None :
-                objra, objdec = ex1hdr['RA_OBJ'], ex1hdr['DEC_OBJ']
-                logging.debug('Setting analysis position to objra, objdec = {0}, {1}'.format(objra, objdec))
+            # If skymap center is not set, set it to the object position of the first run
+            if skycenra == None or skycendec == None :
+                skycenra, skycendec = objra, objdec
+                logging.debug('Setting skymap center to skycenra, skycendec = {0}, {1}'.format(skycenra, skycendec))
             if 'TELESCOP' in ex1hdr :
                 telescope = ex1hdr['TELESCOP']
                 logging.debug('Setting TELESCOP to {0}'.format(telescope))
@@ -215,8 +328,30 @@ def create_sky_map(input_file_name,
                 object_ = ex1hdr['OBJECT']
                 logging.debug('Setting OBJECT to {0}'.format(object_))
 
+        mgit, tpl_mgit = np.ones(len(tbdata), dtype=np.bool), None
+        if template_background :
+            tpl_mgit = np.ones(len(tpl_tbdata), dtype=np.bool)
+        try :
+            # Note: according to the eventlist format document v1.0.0 Section 10
+            # "The times are expressed in the same units as in the EVENTS
+            # table (seconds since mission start in terresterial time)."
+            for gti in hdulist['GTI'].data :
+                mgit *= (tbdata.field('TIME') >= gti[0]) * (tbdata.field('TIME') <= gti[1])
+                if template_background :
+                    tpl_mgit *= (tpl_tbdata.field('TIME') >= gti[0]) * (tpl_tbdata.field('TIME') <= gti[1])
+        except :
+            logging.warning('File does not contain a GTI extension')
+        
+        #---------------------------------------------------------------------------
+        #  Handle exclusion region
+
+        # If no exclusion regions are given, use the object position from the first run
+        if sky_ex_reg == None :
+            sky_ex_reg = [pf.SkyCircle(pf.SkyCoord(objra, objdec), rexdeg)]
+            logging.info('Setting exclusion region to object position (ra={0}, dec={1}, r={2}'.format(objra, objdec, rexdeg))
+
         pntra, pntdec = ex1hdr['RA_PNT'], ex1hdr['DEC_PNT']
-        obj_cam_dist = pf.SkyCoord(objra, objdec).dist(pf.SkyCoord(pntra, pntdec))
+        obj_cam_dist = pf.SkyCoord(skycenra, skycendec).dist(pf.SkyCoord(pntra, pntdec))
 
         exposure_run = ex1hdr['LIVETIME']
         exposure += exposure_run
@@ -227,52 +362,63 @@ def create_sky_map(input_file_name,
         logging.info('RUN Pointing pos.   : RA {0:.4f} [deg], Dec {1:.4f} [deg]'.format(pntra, pntdec))
         logging.info('RUN Obj. cam. dist. : {0:.4f} [deg]'.format(obj_cam_dist))
         
-        # Most important cut for the acceptance calculation: exclude source region
-        exmask = np.invert(np.sqrt(((tbdata.field('RA      ') - objra) / np.cos(objdec * np.pi / 180.)) ** 2.
-                                   + (tbdata.field('DEC     ') - objdec) ** 2.) < rexdeg)
+        # Cut out source region for acceptance fitting
+        exmask = None
+        for sc in sky_ex_reg :
+            if exmask :
+                exmask *= sc.c.dist(pf.SkyCoord(tbdata.field('RA'), tbdata.field('DEC'))) < sc.r
+            else :
+                exmask = sc.c.dist(pf.SkyCoord(tbdata.field('RA'), tbdata.field('DEC'))) < sc.r
+        exmask = np.invert(exmask)
 
-        photbdata = tbdata[phomask * exmask]
-        hadtbdata = tbdata[hadmask * exmask]
+        photbdata = tbdata[exmask * mgit]
+        if len(photbdata) < 10 :
+            logging.warning('Less then 10 events found in file {0} after exclusion region cuts'.format(file_name))
 
-        if template_background and len(hadtbdata) < 100:
-            logging.warning('No background type events for template background detected.')
-            logging.info('Switching off template background.')
-            template_background = False
+        hadtbdata = None
+        if template_background :
+            exmask = None
+            for sc in sky_ex_reg :
+                if exmask :
+                    exmask *= sc.c.dist(pf.SkyCoord(tpl_tbdata.field('RA'), tpl_tbdata.field('DEC'))) < sc.r
+                else :
+                    exmask = sc.c.dist(pf.SkyCoord(tpl_tbdata.field('RA'), tpl_tbdata.field('DEC'))) < sc.r
+            exmask = np.invert(exmask)
+            hadtbdata = tpl_tbdata[exmask * tpl_mgit]
 
         #---------------------------------------------------------------------------
         # Calculate camera acceptance
         
         n, bins, nerr, r, r_a, ex_a, fitter = pf.get_cam_acc(
             photbdata.field('XCAMDIST'),
-            exreg=[[rexdeg, obj_cam_dist]],
-            fit=True
+            exreg=[(sc.r, sc.c.dist(pf.SkyCoord(pntra, pntdec))) for sc in sky_ex_reg],
+            fit=True,
             )
 
         # DEBUG
-        #if logging.root.level is logging.DEBUG :
-        #    fitter.print_results()
-
-        # DEBUG plot
-        #plt.errorbar(r, n / r_a / (1. - ex_a), nerr / r_a / (1. - ex_a))
-        #plt.plot(r, fitter.fitfunc(fitter.results[0], r))
-        #plt.show()
+        if logging.root.level is logging.DEBUG :
+            fitter.print_results()
+            # DEBUG plot
+            plt.errorbar(r, n / r_a / (1. - ex_a), nerr / r_a / (1. - ex_a))
+            plt.plot(r, fitter.fitfunc(fitter.results[0], r))
+            plt.show()
 
         had_acc, had_n, had_fit = None, None, None
         if template_background :
             had_acc = pf.get_cam_acc(
                 hadtbdata.field('XCAMDIST'),
-                exreg=[[rexdeg, obj_cam_dist]],
+                exreg=[(sc.r, sc.c.dist(pf.SkyCoord(pntra, pntdec))) for sc in sky_ex_reg],
                 fit=True
                 )
             had_n, had_fit = had_acc[0], had_acc[6]
             logging.debug('Camera acceptance hadrons fit probability: {0}'.format(had_fit.prob))
 
-        #---------------------------------------------------------------------------
-        # Skymap - definitions/calculation
-
-        # All photons including the exclusion regions
-        photbdata = tbdata[phomask]
-        hadtbdata = tbdata[hadmask]
+        # !!! All photons including the exclusion regions
+        photbdata = tbdata[mgit]
+        if template_background :
+            hadtbdata = tpl_tbdata[tpl_mgit]
+        if len(photbdata) < 10 :
+            logging.warning('Less then 10 events found in file {0} after GTI cut.'.format(file_name))
 
         tpl_acc_cor_use_interp = True
         tpl_acc_f, tpl_acc = None, None
@@ -287,17 +433,20 @@ def create_sky_map(input_file_name,
             m = hadtbdata.field('XCAMDIST') < r[0]
             tpl_acc[m] = tpl_acc_f(r[0])
 
+        #---------------------------------------------------------------------------
+        # Skymap - definitions/calculation
+
         # Object position in the sky
         if firstloop :
-            #objra, objdec, skymap_size = ex1hdr['RA_OBJ'], ex1hdr['DEC_OBJ'], 6.
-            #if objra == None or objdec == None :
-            #    objra, objdec = ex1hdr['RA_OBJ'], ex1hdr['DEC_OBJ']
+            #skycenra, objdec, skymap_size = ex1hdr['RA_OBJ'], ex1hdr['DEC_OBJ'], 6.
+            #if skycenra == None or objdec == None :
+            #    skycenra, objdec = ex1hdr['RA_OBJ'], ex1hdr['DEC_OBJ']
 
             # Calculate skymap limits
             skymap_nbins = int(skymap_size / skymap_bin_size)
-            sky_dec_min, sky_dec_max = objdec - skymap_size / 2., objdec + skymap_size / 2.
-            objcosdec = np.cos(objdec * np.pi / 180.)
-            sky_ra_min, sky_ra_max = objra - skymap_size / 2. / objcosdec, objra + skymap_size / 2. / objcosdec
+            sky_dec_min, sky_dec_max = skycendec - skymap_size / 2., skycendec + skymap_size / 2.
+            objcosdec = np.cos(skycendec * np.pi / 180.)
+            sky_ra_min, sky_ra_max = skycenra - skymap_size / 2. / objcosdec, skycenra + skymap_size / 2. / objcosdec
 
             logging.debug('skymap_nbins = {0}'.format(skymap_nbins))
             logging.debug('sky_dec_min, sky_dec_max = {0}, {1}'.format(sky_dec_min, sky_dec_max))
@@ -321,9 +470,10 @@ def create_sky_map(input_file_name,
             extent = [yedges[0], yedges[-1], xedges[0], xedges[-1]]
             sky_hist = sky[0]
 
-            sky_ex_reg = pf.get_exclusion_region_map(sky_hist, (sky_ra_min, sky_ra_max), (sky_dec_min, sky_dec_max),
-                                                     [pf.SkyCircle(pf.SkyCoord(objra, objdec), rexdeg)])
-
+            sky_ex_reg_map = pf.get_exclusion_region_map(sky_hist,
+                                                         (sky_ra_min, sky_ra_max),
+                                                         (sky_dec_min, sky_dec_max),
+                                                         sky_ex_reg)
         else :
             sky_hist += sky[0]
 
@@ -333,9 +483,12 @@ def create_sky_map(input_file_name,
         xx, yy = np.meshgrid((ra_a[:-1] + ra_a[1:]) / 2. - pntra, (dec_a[:-1] + dec_a[1:]) / 2. - pntdec)
         rr = np.sqrt(xx ** 2. + yy ** 2.)
         p1 = fitter.results[0]
-        acc = fitter.fitfunc(p1, rr) / fitter.fitfunc(p1, .1)
+        acc = fitter.fitfunc(p1, rr) / fitter.fitfunc(p1, .01)
         m = rr > 4.
-        acc[m] = fitter.fitfunc(p1, 4.) / fitter.fitfunc(p1, .1)
+        acc[m] = fitter.fitfunc(p1, 4.) / fitter.fitfunc(p1, .01)
+        if not fov_acceptance :
+            logging.debug('Do _not_ apply FoV acceptance correction')
+            acc = acc * 0. + 1.
 
         # DEBUG plot
         #plt.imshow(acc[::-1], extent=extent, interpolation='nearest')
@@ -359,7 +512,6 @@ def create_sky_map(input_file_name,
             else :
                 tpl_had_hist += tpl_had[0]
 
-
             # Create acceptance map for template background
             tpl_acc = np.histogram2d(x=hadtbdata.field('DEC     '), y=hadtbdata.field('RA      '),
                                      bins=[skymap_nbins, skymap_nbins],
@@ -372,8 +524,11 @@ def create_sky_map(input_file_name,
 
         # Close fits file
         hdulist.close()
+        if tpl_hdulist :
+            tpl_hdulist.close()
 
         # Clean up memory
+        newtable = None
         gc.collect()
 
         firstloop = False
@@ -392,13 +547,13 @@ def create_sky_map(input_file_name,
     sky_overs, sky_overs_alpha = pf.oversample_sky_map(sky_hist, sc)
 
     logging.info('Calculating oversampled ring background map ..')
-    sky_bg_ring, sky_bg_ring_alpha = pf.oversample_sky_map(sky_hist, sr, sky_ex_reg)
+    sky_bg_ring, sky_bg_ring_alpha = pf.oversample_sky_map(sky_hist, sr, sky_ex_reg_map)
 
     logging.info('Calculating oversampled event acceptance map ..')
     acc_overs, acc_overs_alpha = pf.oversample_sky_map(acc_hist, sc)
 
     logging.info('Calculating oversampled ring background acceptance map ..')
-    acc_bg_overs, acc_bg_overs_alpha = pf.oversample_sky_map(acc_hist, sr, sky_ex_reg)
+    acc_bg_overs, acc_bg_overs_alpha = pf.oversample_sky_map(acc_hist, sr, sky_ex_reg_map)
 
     rng_alpha = acc_hist / acc_bg_overs # camera acceptance
     rng_exc = sky_hist - sky_bg_ring * rng_alpha
@@ -452,16 +607,22 @@ def create_sky_map(input_file_name,
 
         if template_background :
             outfile_base_name = 'skymap_template'
-            outfile_extensions = ['_background.fits', '_acceptance.fits', '_background_over.fits',
-                                  '_significance_over.fits', '_excess_over.fits', '_alpha_over.fits']
-            outfile_base_name = pf.unique_base_file_name(outfile_base_name, outfile_extensions)
+            outfile_data = {
+                '_bg.fits': tpl_had_hist,
+                '_ac.fits': tpl_acc_hist,
+                '_bg_overs.fits': tpl_had_overs,
+                '_si_overs.fits': tpl_sig_overs,
+                '_ex_overs.fits': tpl_exc_overs,
+                '_al_overs.fits': tpl_alpha_overs,
+                #'_si.fits': rng_sig,
+                #'_ex.fits': rng_exc,
+                #'_al.fits': rng_alpha
+                }
+            outfile_base_name = pf.unique_base_file_name(outfile_base_name, outfile_data.keys())
 
-            pf.map_to_primaryhdu(tpl_had_hist, rarange, decrange).writeto(outfile_base_name + outfile_extensions[0])
-            pf.map_to_primaryhdu(tpl_acc_hist, rarange, decrange).writeto(outfile_base_name + outfile_extensions[1])
-            pf.map_to_primaryhdu(tpl_had_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[2])
-            pf.map_to_primaryhdu(tpl_sig_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[3])
-            pf.map_to_primaryhdu(tpl_exc_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[4])
-            pf.map_to_primaryhdu(tpl_alpha_overs, rarange, decrange).writeto(outfile_base_name + outfile_extensions[5])
+            for ext, data in outfile_data.iteritems() :
+                pf.map_to_primaryhdu(data, rarange, decrange, author='PyFACT pfmap',
+                                     object_=object_, telescope=telescope).writeto(outfile_base_name + ext)
 
         logging.info('The output files can be found in {0}'.format(os.getcwd()))
 
@@ -473,226 +634,16 @@ def create_sky_map(input_file_name,
         import matplotlib
         logging.info('Plotting results (matplotlib v{0})'.format(matplotlib.__version__))
 
-        def set_title_and_axlabel(label) :
-            plt.xlabel('RA (deg)')
-            plt.ylabel('Dec (deg)')
-            plt.title(label, fontsize='medium')
+        plot_skymap(sky_overs, rng_exc_overs, rng_sig_overs, sky_bg_ring, rng_alpha_overs, 'Ring BG overs.',
+                    sky_ra_min, sky_ra_max, sky_dec_min, sky_dec_max, objcosdec, r_overs, extent,
+                    skycenra, skycendec,
+                    ring_bg_r_min, ring_bg_r_max, sign_hist_r_max = 2.)
 
-        cir_overs = matplotlib.patches.Circle(
-            (sky_ra_min + .08 * (sky_ra_max - sky_ra_min) + r_overs / objcosdec,
-             sky_dec_min + .08 * (sky_dec_max - sky_dec_min) + r_overs / objcosdec),
-            radius=r_overs / objcosdec,
-            fill=True,
-            edgecolor='1.',
-            facecolor='1.',
-            alpha=.6
-            )
-
-        gauss_func = lambda p, x: p[0] * np.exp(- (x - p[1]) ** 2. / 2. / p[2] ** 2.)
-            
         if template_background :
-            #----------------------------------------
-            plt.figure(1, figsize=(13,7))
-            
-            plt.subplots_adjust(wspace=.4, left=.07, right=.96, hspace=.25, top=.93)
-
-            #----------------------------------------
-            ax = plt.subplot(231) 
-
-            # [::-1] - invert 1st axis
-            plt.imshow(sky_overs[::-1], extent=extent, interpolation='nearest')
-
-            cb = plt.colorbar()
-            cb.set_label('Events')
-            #plt.clim(-4., 4.)
-
-            set_title_and_axlabel('Events')
-
-            ax.add_patch(cir_overs)
-
-            #----------------------------------------
-            ax = plt.subplot(232) 
-
-            plt.imshow(tpl_exc_overs[::-1], extent=extent, interpolation='nearest')
-
-            cb = plt.colorbar()
-            cb.set_label('Excess events')
-
-            set_title_and_axlabel('Template BG - Excess')
-
-            #----------------------------------------
-            ax = plt.subplot(233) 
-
-            plt.imshow(tpl_sig_overs[::-1], extent=extent, interpolation='nearest')
-
-            cb = plt.colorbar()
-            cb.set_label('Significance')
-
-            set_title_and_axlabel('Template BG - Significance')
-
-            #----------------------------------------
-            ax = plt.subplot(234) 
-
-            plt.imshow(tpl_had_overs[::-1], extent=extent, interpolation='nearest')
-
-            cb = plt.colorbar()
-            cb.set_label('Background events')
-
-            set_title_and_axlabel('Template BG - Background')
-
-            # Need 2nd instance to be able to add two circles to the same figure
-            cir_overs2 = matplotlib.patches.Circle(
-                (sky_ra_min + .08 * (sky_ra_max - sky_ra_min) + r_overs / objcosdec,
-                 sky_dec_min + .08 * (sky_dec_max - sky_dec_min) + r_overs / objcosdec),
-                radius=r_overs / objcosdec,
-                fill=True,
-                edgecolor='1.',
-                facecolor='1.',
-                alpha=.6
-                )
-            ax.add_patch(cir_overs2)
-
-            #----------------------------------------
-            ax = plt.subplot(235) 
-
-            plt.imshow(tpl_alpha_overs[::-1], extent=extent, interpolation='nearest')
-
-            cb = plt.colorbar()
-            cb.set_label('Alpha')
-
-            set_title_and_axlabel('Template BG - Alpha')
-
-            #----------------------------------------
-            ax = plt.subplot(236)
-
-            n, bins, patches = plt.hist(tpl_sig_overs.flatten(), bins=100, range=(-8., 8.),
-                                        histtype='stepfilled', color='SkyBlue', log=True)
-
-            x = np.linspace(-5., 8., 100)
-            plt.plot(x, gauss_func([float(n.max()), 0., 1.], x), label='Gauss ($\sigma=1.$, mean=0.)')
-
-            plt.xlabel('Significance')
-            plt.title('Template BG', fontsize='medium')
-
-            plt.ylim(1., n.max() * 5.)
-            plt.legend(loc='upper left', prop={'size': 'small'})
-
-        #----------------------------------------
-        plt.figure(2, figsize=(13,7))
-
-        plt.subplots_adjust(wspace=.4, left=.07, right=.96, hspace=.25, top=.93)
-
-        #----------------------------------------
-        ax = plt.subplot(231) 
-
-        #plt.imshow(sky_overs[::-1], extent=extent, interpolation='nearest')
-        plt.imshow(sky_hist[::-1], extent=extent, interpolation='nearest')        
-
-        cb = plt.colorbar()
-        cb.set_label('Events')
-        #plt.clim(-4., 4.)
-
-        set_title_and_axlabel('Events')
-
-        ax.add_patch(cir_overs)
-
-        #----------------------------------------
-        ax = plt.subplot(232) 
-
-        #plt.imshow(rng_exc_overs[::-1], extent=extent, interpolation='nearest')
-        plt.imshow(rng_exc[::-1], extent=extent, interpolation='nearest')
-
-        cb = plt.colorbar()
-        cb.set_label('Excess events')
-
-        set_title_and_axlabel('Ring BG - Excess')
-
-        #----------------------------------------
-        ax = plt.subplot(233) 
-
-        #plt.imshow(rng_sig_overs[::-1], extent=extent, interpolation='nearest')
-        plt.imshow(rng_sig[::-1], extent=extent, interpolation='nearest')
-
-        cb = plt.colorbar()
-        cb.set_label('Significance')
-
-        set_title_and_axlabel('Ring BG - Significance')
-
-        #----------------------------------------
-        ax = plt.subplot(234) 
-
-        plt.imshow(sky_bg_ring[::-1], extent=extent, interpolation='nearest')
-
-        cb = plt.colorbar()
-        cb.set_label('Background events')
-
-        set_title_and_axlabel('Ring BG - Background')
-
-        # Plot ring background region
-        plt_r_ra = sky_ra_min + .03 * (sky_ra_max - sky_ra_min) + ring_bg_r_max / objcosdec
-        plt_r_dec = sky_dec_min + .03 * (sky_dec_max - sky_dec_min) + ring_bg_r_max / objcosdec
-        cir = matplotlib.patches.Circle(
-            (plt_r_ra, plt_r_dec),
-            radius=ring_bg_r_max / objcosdec,
-            fill=False,
-            edgecolor='1.',
-            facecolor='0.',
-            linestyle='solid',
-            linewidth=1.,
-            )
-        ax.add_patch(cir)
-
-        cir = matplotlib.patches.Circle(
-            (plt_r_ra, plt_r_dec),
-            radius=ring_bg_r_min / objcosdec,
-            fill=False,
-            edgecolor='1.',
-            facecolor='0.',
-            linestyle='solid',
-            linewidth=1.,
-            )
-        ax.add_patch(cir)
-
-        cir = matplotlib.patches.Circle(
-            (plt_r_ra, plt_r_dec),
-            radius=r_overs / objcosdec,
-            fill=True,
-            edgecolor='1.',
-            facecolor='1.',
-            alpha=.6
-            )
-        ax.add_patch(cir)
-
-        #----------------------------------------
-        ax = plt.subplot(235) 
-
-        #plt.imshow(rng_alpha_overs[::-1], extent=extent, interpolation='nearest')
-        plt.imshow(rng_alpha[::-1], extent=extent, interpolation='nearest')
-
-        cb = plt.colorbar()
-        cb.set_label('Alpha')
-
-        set_title_and_axlabel('Ring BG - Alpha')
-
-        #----------------------------------------
-        ax = plt.subplot(236)
-
-        sign_hist_r_max = 2.
-        sky_ex_reg = pf.get_exclusion_region_map(sky_hist, (sky_ra_min, sky_ra_max), (sky_dec_min, sky_dec_max),
-                                                 [pf.SkyCircle(pf.SkyCoord(objra, objdec), sign_hist_r_max)])
-        #n, bins, patches = plt.hist(rng_sig_overs[sky_ex_reg == 0.].flatten(), bins=100, range=(-8., 8.),
-        #                        histtype='stepfilled', color='SkyBlue', log=True)
-        n, bins, patches = plt.hist(rng_sig[sky_ex_reg == 0.].flatten(), bins=100, range=(-8., 8.),
-                                    histtype='stepfilled', color='SkyBlue', log=True)
-
-        x = np.linspace(-5., 8., 100)
-        plt.plot(x, gauss_func([float(n.max()), 0., 1.], x), label='Gauss ($\sigma=1.$, mean=0.)')
-
-        plt.xlabel('Significance R < {0}'.format(sign_hist_r_max))
-        plt.title('Ring BG', fontsize='medium')
-
-        plt.ylim(1., n.max() * 5.)
-        plt.legend(loc='upper left', prop={'size': 'small'})
+            plot_skymap(sky_overs, tpl_exc_overs, tpl_sig_overs, tpl_had_overs, tpl_alpha_overs,
+                        'Template BG overs.',
+                        sky_ra_min, sky_ra_max, sky_dec_min, sky_dec_max, objcosdec, r_overs, extent,
+                        skycenra, skycendec, sign_hist_r_max = 2.)
 
     #----------------------------------------
     # Time it!
@@ -729,11 +680,11 @@ if __name__ == '__main__':
         help='Bin size in degree [default: %default].'
     )
     parser.add_option(
-        '-c','--skymap-center',
+        '-p','--analysis-position',
         dest='skymap_center',
         type='str',
         default=None,
-        help='Center of the skymap in RA and Dec (J2000) in degree. Format: \'(RA, Dec)\', including the quotation marks. If no center is given, the source position from the first input file is used.'
+        help='Center of the skymap in RA and Dec (J2000) in degrees. Format: \'(RA, Dec)\', including the quotation marks. If no center is given, the source position from the first input file is used.'
     )
     parser.add_option(
         '-r','--oversampling-radius',
@@ -756,18 +707,17 @@ if __name__ == '__main__':
         help='Write results to FITS files in current directory [default: %default]'
     )
     parser.add_option(
-        '--no-cuts',
-        dest='apply_cuts',
+        '--no-acceptance-correction',
+        dest='fov_acceptance',
         action='store_false',
         default=True,
-        help='Switch of cuts.'
+        help='Do not correct skymaps for FoV acceptance [default: %default]'
     )
     parser.add_option(
-        '--no-template-background',
+        '-t', '--template-background',
         dest='template_background',
-        action='store_false',
-        default=True,
-        help='Switch off template background.'
+        default=None,
+        help='Bankfile with template background eventlists.'
     )
     parser.add_option(
         '--no-graphical-output',
@@ -792,10 +742,10 @@ if __name__ == '__main__':
             skymap_bin_size=options.bin_size,
             r_overs=options.oversampling_radius,
             ring_bg_radii=options.ring_bg_radii,
-            apply_cuts=options.apply_cuts,
             template_background=options.template_background,            
             skymap_center=options.skymap_center,
             write_output=options.write_output,
+            fov_acceptance=options.fov_acceptance,
             do_graphical_output=options.graphical_output,
             loglevel=options.loglevel
             )

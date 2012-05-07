@@ -1,0 +1,13 @@
+# Editor temporary/working/backup files #
+#########################################
+*~
+.project
+.pydevproject
+
+# Compiled source #
+###################
+*.py[ocd]
+
+# Python files #
+################
+docs/_build

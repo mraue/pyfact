@@ -1,5 +1,5 @@
 #===========================================================================
-# Copyright (c) 2011, Martin Raue
+# Copyright (c) 2011-2012, the PyFACT developers
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -16,7 +16,7 @@
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL MARTIN RAUE BE LIABLE FOR ANY
+# DISCLAIMED. IN NO EVENT SHALL THE PYFACT DEVELOPERS BE LIABLE FOR ANY
 # DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
 # (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
 # LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -115,7 +115,13 @@ class SkyCircle:
         return self.c.dist(sc.c) <= self.r + sc.r
 
 #---------------------------------------------------------------------------
-def get_cam_acc(camdist, rmax=4., nbins=0, exreg=None, fit=False, fitfunc=None, p0=None) :
+def skycircle_from_str(cstr) :
+    """Creates SkyCircle from circle region string."""
+    x, y, r = eval(cstr.upper().replace('CIRCLE', ''))
+    return SkyCircle(SkyCoord(x, y), r)
+
+#---------------------------------------------------------------------------
+def get_cam_acc(camdist, rmax=4., nbins=None, exreg=None, fit=False, fitfunc=None, p0=None) :
     """
     Calculates the camera acceptance histogram from a given list with camera distances (event list).
 
@@ -157,8 +163,10 @@ def get_cam_acc(camdist, rmax=4., nbins=0, exreg=None, fit=False, fitfunc=None, 
         #fitfunc = lambda p, x: p[0] * x ** p[1] * (1. + (x / p[2]) ** p[3]) ** ((p[1] + p[4]) / p[3])
         if not fitfunc :
             fitfunc = lambda p, x: p[0] * x ** 0. * (1. + (x / p[1]) ** p[2]) ** ((0. + p[3]) / p[2])
+            #fitfunc = lambda p, x: p[0] * x ** 0. * (1. + (x / p[1]) ** p[2]) ** ((0. + p[3]) / p[2]) + p[4] / (np.exp(p[5] * (x - p[6])) + 1.)            
         if not p0 :
             p0 = [n[0] / r_a[0], 1.5, 3., -5.] # Initial guess for the parameters
+            #p0 = [.5 * n[0] / r_a[0], 1.5, 3., -5., .5 * n[0] / r_a[0], 100., .5] # Initial guess for the parameters            
         fitter = pf.ChisquareFitter(fitfunc)
         m = (n > 0.) * (nerr > 0.) * (r_a != 0.) * ((1. - ex_a) != 0.)
         if np.sum(m) <= len(p0) :
@@ -185,6 +193,12 @@ def get_sky_mask_circle(r, bin_size) :
         Radius of the circle.
     bin_size : float
         Physical size of the bin, same units as rmin, rmax.
+
+    Returns
+    -------
+    sky_mask : 2d numpy array
+        Returns a 2d numpy histogram with (2. * r / bin_size) bins per axis
+        where a circle of radius has bins filled 1.s, all other bins are 0.
     """
     nbins = int(np.ceil(2. * r / bin_size))
     sky_x = np.ones((nbins, nbins)) *  np.linspace(bin_size / 2., 2. * r - bin_size / 2., nbins)
@@ -207,6 +221,13 @@ def get_sky_mask_ring(rmin, rmax, bin_size) :
         Outer radius of the ring.
     bin_size : float
         Physical size of the bin, same units as rmin, rmax.
+
+    Returns
+    -------
+    sky_mask : 2d numpy array
+        Returns a 2d numpy histogram with (2. * rmax / bin_size) bins per axis
+        filled with a ring with inner radius rmin and outer radius rmax of 1.,
+        all other bins are 0..
     """
     nbins = int(np.ceil(2. * rmax / bin_size))
     sky_x = np.ones((nbins, nbins)) *  np.linspace(bin_size / 2., 2. * rmax - bin_size / 2., nbins)
