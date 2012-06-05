@@ -49,7 +49,7 @@ The module is splitted in several files according to the functionality for bette
 
 """
 
-__version__ = '0.2.0dev'
+__version__ = '0.2.1'
 __author__  = 'M. Raue // martin.raue@desy.de'
 
 # Import all functions/classes from the different files
