@@ -51,7 +51,7 @@ class SkyCoord:
         Parameters
         ----------
         ra : float/array
-            Right ascention coordinate.
+            Right ascension of the coordinate.
         dec : float/array
             Declination of the coordinate.
         """
@@ -62,13 +62,18 @@ class SkyCoord:
         Return the distance of the coordinates in degree following the haversine formula,
         see e.g. http://en.wikipedia.org/wiki/Great-circle_distance.
 
+        Parameters
+        ----------
         c : SkyCoord
 
         Returns
         -------
         distance : float
-            Return the distance of the coordinates in degree following the haversine formula,
-            see e.g. http://en.wikipedia.org/wiki/Great-circle_distance.
+            Return the distance of the coordinates in degree following the haversine formula.
+
+        Notes
+        -----
+        http://en.wikipedia.org/wiki/Great-circle_distance
         """
         return 2. * np.arcsin(np.sqrt(np.sin((self.dec - c.dec) / 360. * np.pi) ** 2.
                                       + np.cos(self.dec / 180. * np.pi) * np.cos(c.dec / 180. * np.pi)\
@@ -95,6 +100,8 @@ class SkyCircle:
         """
         Checks if the coordinate lies inside the circle.
 
+        Parameters
+        ----------
         c : SkyCoord
 
         Returns

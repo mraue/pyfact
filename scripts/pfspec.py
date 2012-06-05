@@ -359,12 +359,12 @@ def create_spectrum(input_file_names,
             # Prepare excess data
             dat = spec_on_run_hist - alpha_run * spec_off_run_hist # ON - alpha x OFF = Excess
             dat_err = np.sqrt(spec_on_run_hist + spec_off_run_hist * alpha_run ** 2.)
-            quality = np.where(((spec_on_run_hist == 0) | (spec_off_run_hist == 0)), 1, 0) # Set quality flags
+            quality = np.where(((spec_on_run_hist == 0) | (spec_off_run_hist == 0)), 2, 0) # Set quality flags
             chan = np.arange(len(dat))
 
             # Signal PHA
             tbhdu = pf.np_to_pha(channel=chan, counts=np.array(spec_on_run_hist, dtype=float),
-                                 quality=np.where((spec_on_run_hist == 0), 1, 0),
+                                 quality=quality,
                                  exposure=exposure_run, obj_ra=objra, obj_dec=objdec,
                                  dstart=run_dstart, dstop=run_dstop, creator='pfspec', version=pf.__version__,
                                  telescope=telescope, instrument=instrument)
